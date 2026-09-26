@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f4f6f9;
+        }
+
+        .card {
+            background: #fff;
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 360px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 0;
+            color: #1e293b;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 15px;
+            color: #64748b;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab.active {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
+            font-weight: 600;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        button[type="submit"] {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #2563eb;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        button[type="submit"]:hover {
+            background: #1d4ed8;
+        }
+
+        #message {
+            text-align: center;
+            min-height: 20px;
+            margin: 10px 0 0;
+            font-size: 14px;
+        }
+
+        #message.error {
+            color: #dc2626;
+        }
+
+        #message.success {
+            color: #16a34a;
+        }
+
+        /* Dashboard */
+        .dashboard {
+            width: 100%;
+            max-width: 900px;
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .navbar h1 {
+            margin: 0;
+        }
+
+        .logout-btn {
+            padding: 10px 18px;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #dc2626;
+        }
+
+        .logout-btn:hover {
+            background: #fef2f2;
+        }
+
+        .dashboard-empty {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px dashed #cbd5e1;
+            padding: 48px;
+            text-align: center;
+            color: #64748b;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Auth view: choose login or create account -->
+    <div id="authView" class="card">
+        <h1>Welcome</h1>
+
+        <div class="tabs">
+            <button class="tab active" data-mode="login">Login</button>
+            <button class="tab" data-mode="signup">Create Account</button>
+        </div>
+
+        <form id="authForm">
+            <input type="email" id="email" name="email" placeholder="Email" required>
+            <input type="password" id="password" name="password" placeholder="Password" required>
+            <button type="submit" id="submitBtn">Login</button>
+        </form>
+
+        <p id="message"></p>
+    </div>
+
+    <!-- Dashboard view: empty for now -->
+    <div id="dashboardView" class="dashboard" style="display: none;">
+        <div class="navbar">
+            <h1>Dashboard</h1>
+            <button class="logout-btn" id="logoutBtn">Logout</button>
+        </div>
+
+        <div class="dashboard-empty">
+            <p>Welcome! Your dashboard is empty for now.</p>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:6969";
+
+        const authView = document.getElementById("authView");
+        const dashboardView = document.getElementById("dashboardView");
+        const authForm = document.getElementById("authForm");
+        const emailInput = document.getElementById("email");
+        const passwordInput = document.getElementById("password");
+        const submitBtn = document.getElementById("submitBtn");
+        const message = document.getElementById("message");
+        const tabs = document.querySelectorAll(".tab");
+
+        let mode = "login";
+
+        // Switch between login and create-account modes
+        tabs.forEach((tab) => {
+            tab.addEventListener("click", () => {
+                mode = tab.dataset.mode;
+                tabs.forEach((t) => t.classList.toggle("active", t === tab));
+                submitBtn.textContent = mode === "login" ? "Login" : "Create Account";
+                message.textContent = "";
+                message.className = "";
+            });
+        });
+
+        // On load, go straight to dashboard if a token already exists
+        if (localStorage.getItem("access_token")) {
+            showDashboard();
+        }
+
+        authForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            const endpoint = mode === "login" ? "/login" : "/create_account";
+
+            message.textContent = "Please wait...";
+            message.className = "";
+
+            try {
+                const response = await fetch(API_URL + endpoint, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username: email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && !data.error) {
+                    if (data.access_token) {
+                        localStorage.setItem("access_token", data.access_token);
+                        localStorage.setItem("user_id", data.user_id);
+                    }
+                    message.textContent = mode === "login" ? "Login successful" : "Account created";
+                    message.className = "success";
+                    showDashboard();
+                } else {
+                    message.textContent = data.error || data.detail || "Request failed";
+                    message.className = "error";
+                }
+            } catch (error) {
+                message.textContent = "Could not connect to server";
+                message.className = "error";
+                console.error(error);
+            }
+        });
+
+        document.getElementById("logoutBtn").addEventListener("click", async() => {
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("user_id");
+            authView.style.display = "";
+            dashboardView.style.display = "none";
+            authForm.reset();
+
+            const endpoint='/logout';
+
+            try {
+                const response = await fetch(API_URL + endpoint, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: null
+                });
+
+                const data = await response.json();
+
+            } catch (error) {
+                message.textContent = "Could not connect to server";
+                message.className = "error";
+                console.error(error);
+            }
+
+
+        });
+
+        function showDashboard() {
+            authView.style.display = "none";
+            dashboardView.style.display = "";
+        }
+    </script>
+
+</body>
+
+</html>
