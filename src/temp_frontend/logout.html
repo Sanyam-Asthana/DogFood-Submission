@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logout</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f4f6f9;
+        }
+
+        .card {
+            background: #fff;
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 0;
+            color: #1e293b;
+        }
+
+        p {
+            color: #64748b;
+        }
+
+        #message {
+            text-align: center;
+            min-height: 20px;
+            margin: 10px 0 0;
+            font-size: 14px;
+        }
+
+        #message.error {
+            color: #dc2626;
+        }
+
+        #message.success {
+            color: #16a34a;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="card">
+        <h1>Logged Out</h1>
+        <p>You have been logged out.</p>
+        <p id="message"></p>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:6969";
+        const message = document.getElementById("message");
+
+        // Make sure stored credentials are gone, even if reached directly
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("user_id");
+
+        // Notify the server, then return to login regardless of result
+        (async () => {
+            try {
+                const response = await fetch(API_URL + "/logout", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: null
+                });
+
+                const data = await response.json();
+            } catch (error) {
+                message.textContent = "Could not connect to server";
+                message.className = "error";
+                console.error(error);
+            } finally {
+                window.location.href = "login.html";
+            }
+        })();
+    </script>
+
+</body>
+
+</html>

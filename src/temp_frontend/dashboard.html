@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f4f6f9;
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 0;
+            color: #1e293b;
+        }
+
+        /* Dashboard */
+        .dashboard {
+            width: 100%;
+            max-width: 900px;
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .navbar h1 {
+            margin: 0;
+        }
+
+        .logout-btn {
+            padding: 10px 18px;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #dc2626;
+        }
+
+        .logout-btn:hover {
+            background: #fef2f2;
+        }
+
+        .dashboard-empty {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px dashed #cbd5e1;
+            padding: 48px;
+            text-align: center;
+            color: #64748b;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="dashboard">
+        <div class="navbar">
+            <h1>Dashboard</h1>
+            <button class="logout-btn" id="logoutBtn">Logout</button>
+        </div>
+
+        <div class="dashboard-empty">
+            <p>Welcome! Your dashboard is empty for now.</p>
+        </div>
+    </div>
+
+    <script>
+        // Redirect to login if no token exists
+        if (!localStorage.getItem("access_token")) {
+            window.location.href = "login.html";
+        }
+
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+            // Clear stored credentials now, then let logout.html notify the server
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("user_id");
+            window.location.href = "logout.html";
+        });
+    </script>
+
+</body>
+
+</html>
