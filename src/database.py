@@ -64,7 +64,14 @@ def init_db() -> None:
                             f"CREATE POLICY \"Public read {table}\" ON {table} FOR SELECT USING (true); END IF; END $$;"
                         )
                     )
+                # Drop unique constraint on session_token if it exists, converting it to a standard index
+                conn.execute(text("DROP INDEX IF EXISTS ix_users_session_token;"))
+                conn.execute(text("ALTER TABLE IF EXISTS users DROP CONSTRAINT IF EXISTS ix_users_session_token;"))
+                conn.execute(text("ALTER TABLE IF EXISTS users ALTER COLUMN session_token TYPE VARCHAR(255);"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_session_token ON users (session_token);"))
+                # Repair any duplicate sliced JWT session tokens
+                conn.execute(text("UPDATE users SET session_token = 'usr_' || id WHERE session_token LIKE 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpX%';"))
                 conn.commit()
-            logger.info("Row Level Security (RLS) enabled on public tables.")
+            logger.info("Row Level Security (RLS) enabled on public tables and session_token constraint cleaned up.")
         except Exception as e:
             logger.warning(f"Could not auto-enable RLS: {e}")

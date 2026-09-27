@@ -70,9 +70,9 @@ def seed_fixtures(fixture_path: str = "fixtures.json") -> None:
             ),
             User(
                 id="usr_prt",
-                name="Ada Okonkwo (Participant)",
+                name="Ada Okonkwo (User)",
                 email="ada@example.org",
-                role=UserRole.PARTICIPANT.value,
+                role=UserRole.USER.value,
                 session_token="prt_2e88",
             ),
         ]

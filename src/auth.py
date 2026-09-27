@@ -48,18 +48,23 @@ def create_account(email, password, role="user"):
                 from src.database import SessionLocal
                 from src.models.user import User
                 db = SessionLocal()
-                u = db.query(User).filter(User.id == user_id).first()
+                u = db.query(User).filter((User.id == user_id) | (User.email == email)).first()
                 if not u:
                     u = User(
                         id=user_id,
                         email=email,
                         name=email.split("@")[0],
                         role=role or "user",
-                        session_token=session_token[:64] if session_token else f"usr_{user_id}",
+                        session_token=f"usr_{user_id}",
                     )
                     db.add(u)
                     db.commit()
                 else:
+                    if u.id != user_id:
+                        u.id = user_id
+                    u.role = role or u.role or "user"
+                    u.session_token = f"usr_{user_id}"
+                    db.commit()
                     role = u.role
                 db.close()
             except Exception as dbe:
@@ -93,18 +98,22 @@ def login(email, password):
             from src.database import SessionLocal
             from src.models.user import User
             db = SessionLocal()
-            u = db.query(User).filter(User.id == user_id).first()
+            u = db.query(User).filter((User.id == user_id) | (User.email == email)).first()
             if not u:
                 u = User(
                     id=user_id,
                     email=email,
                     name=email.split("@")[0],
                     role="user",
-                    session_token=access_token[:64],
+                    session_token=f"usr_{user_id}",
                 )
                 db.add(u)
                 db.commit()
             else:
+                if u.id != user_id:
+                    u.id = user_id
+                u.session_token = f"usr_{user_id}"
+                db.commit()
                 role = u.role
             db.close()
         except Exception as dbe:

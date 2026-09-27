@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr, ConfigDict
 class UserBase(BaseModel):
     email: EmailStr
     name: str
-    role: str = "participant"
+    role: str = "user"
 
 
 class UserCreate(UserBase):

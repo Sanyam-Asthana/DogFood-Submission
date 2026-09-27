@@ -88,18 +88,23 @@ def get_current_user_optional(
             role = payload.get("app_metadata", {}).get("role") or payload.get("role") or UserRole.USER.value
 
             if user_id:
-                user = db.query(User).filter(User.id == user_id).first()
+                user = db.query(User).filter((User.id == user_id) | (User.email == email)).first()
                 if not user:
                     user = User(
                         id=user_id,
                         email=email,
                         name=email.split("@")[0],
                         role=role if role in [r.value for r in UserRole] else UserRole.USER.value,
-                        session_token=token[:32],
+                        session_token=f"usr_{user_id}",
                     )
-                    db.add(user)
-                    db.commit()
-                    db.refresh(user)
+                    try:
+                        db.add(user)
+                        db.commit()
+                        db.refresh(user)
+                    except Exception as sync_err:
+                        db.rollback()
+                        logger.warning(f"Could not auto-create user from JWT: {sync_err}")
+                        user = db.query(User).filter((User.id == user_id) | (User.email == email)).first()
                 return user
         except Exception as e:
             logger.debug(f"Could not parse token as JWT: {e}")

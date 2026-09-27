@@ -27,6 +27,22 @@ class PlatformService:
 
     _active_owner_key: Optional[str] = None
 
+    @staticmethod
+    def is_event_closed(event: Optional[Event]) -> bool:
+        """Check if an event is closed or submissions have ended, safely handling tz-naive and tz-aware datetimes."""
+        if not event:
+            return True
+        if not event.is_active or event.status == "closed":
+            return True
+        if event.submissions_close:
+            now = datetime.now(timezone.utc)
+            sub_close = event.submissions_close
+            if sub_close.tzinfo is None:
+                sub_close = sub_close.replace(tzinfo=timezone.utc)
+            if sub_close <= now:
+                return True
+        return False
+
     @classmethod
     def generate_new_owner_key(cls) -> str:
         """Always generate a fresh secure random owner key on platform spin-up."""
@@ -75,9 +91,19 @@ class PlatformService:
             )
 
         current_user.role = UserRole.OWNER.value
+
+        # Revoke all participant and judge memberships across all events for this user
+        db.query(EventMember).filter(EventMember.user_id == current_user.id).delete()
+
+        # Decline/revoke any pending judge invitations for this user
+        db.query(JudgeInvitation).filter(
+            JudgeInvitation.invitee_id == current_user.id,
+            JudgeInvitation.status == InvitationStatus.PENDING.value,
+        ).update({"status": InvitationStatus.DECLINED.value})
+
         db.commit()
         db.refresh(current_user)
-        logger.info(f"User '{current_user.email}' (ID: {current_user.id}) claimed platform OWNER role.")
+        logger.info(f"User '{current_user.email}' (ID: {current_user.id}) claimed platform OWNER role. All participant/judge statuses revoked.")
         return current_user
 
     @staticmethod
@@ -167,7 +193,15 @@ class PlatformService:
     @staticmethod
     def list_users(db: Session) -> List[User]:
         """List all platform users and their current roles."""
-        return db.query(User).order_by(User.created_at.desc()).all()
+        users = db.query(User).order_by(User.created_at.desc()).all()
+        needs_commit = False
+        for u in users:
+            if u.role == "participant":
+                u.role = UserRole.USER.value
+                needs_commit = True
+        if needs_commit:
+            db.commit()
+        return users
 
     # -----------------------------------------------------------------------
     # Event-Specific Roles & Judge Invitations
@@ -175,7 +209,28 @@ class PlatformService:
 
     @staticmethod
     def join_event(db: Session, event_id: str, user: User) -> EventMember:
-        """Join an event as a participant."""
+        """Join an event as a participant.
+        
+        Rules:
+        - Only users can participate in an event.
+        - Platform Owners and Organisers are forbidden from participating.
+        - An official Judge of this event cannot participate in their own event (may only participate in other events).
+        """
+        # 1. Platform Owners cannot participate
+        if user.role == UserRole.OWNER.value:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Platform Owners are forbidden from participating in hackathons.",
+            )
+
+        # 2. Platform Organisers cannot participate
+        if user.role == UserRole.ORGANIZER.value:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Platform Organisers are forbidden from participating in hackathons.",
+            )
+
+        # 3. Verify event exists and is open
         event = db.query(Event).filter(Event.id == event_id).first()
         if not event:
             raise HTTPException(
@@ -183,6 +238,25 @@ class PlatformService:
                 detail=f"Event '{event_id}' not found.",
             )
 
+        if PlatformService.is_event_closed(event):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot join event '{event.name}': submissions are closed for this hackathon.",
+            )
+
+        # 4. Official Judge of this event cannot participate in their own event
+        existing_judge = db.query(EventMember).filter(
+            EventMember.event_id == event_id,
+            EventMember.user_id == user.id,
+            EventMember.role == EventRole.JUDGE.value,
+        ).first()
+        if existing_judge:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are an official Judge for this event and cannot participate in it. Judges may only participate in other events.",
+            )
+
+        # 5. Retrieve or create participant membership
         membership = db.query(EventMember).filter(
             EventMember.event_id == event_id,
             EventMember.user_id == user.id,
@@ -216,12 +290,18 @@ class PlatformService:
                 detail="Only platform Organizers or the Owner can invite judges to an event.",
             )
 
-        # 2. Verify event exists
+        # 2. Verify event exists and is open
         event = db.query(Event).filter(Event.id == event_id).first()
         if not event:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Event '{event_id}' not found.",
+            )
+
+        if PlatformService.is_event_closed(event):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot invite judges to event '{event.name}': hackathon event is closed.",
             )
 
         # 3. Resolve invitee
@@ -291,9 +371,20 @@ class PlatformService:
     @staticmethod
     def get_my_invitations(db: Session, user: User) -> List[JudgeInvitation]:
         """List all judge invitations sent to the current user."""
-        return db.query(JudgeInvitation).filter(
+        invitations = db.query(JudgeInvitation).filter(
             JudgeInvitation.invitee_id == user.id
         ).order_by(JudgeInvitation.created_at.desc()).all()
+
+        needs_commit = False
+        for inv in invitations:
+            if inv.status == InvitationStatus.PENDING.value and inv.event:
+                if PlatformService.is_event_closed(inv.event):
+                    inv.status = InvitationStatus.EXPIRED.value
+                    needs_commit = True
+        if needs_commit:
+            db.commit()
+
+        return invitations
 
     @staticmethod
     def respond_to_invitation(
@@ -312,6 +403,18 @@ class PlatformService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Invitation not found or not addressed to you.",
+            )
+
+        # Check if event has closed or invitation has expired
+        if invitation.status == InvitationStatus.EXPIRED.value or (
+            invitation.event and PlatformService.is_event_closed(invitation.event)
+        ):
+            if invitation.status == InvitationStatus.PENDING.value:
+                invitation.status = InvitationStatus.EXPIRED.value
+                db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot respond to invitation: this hackathon event has closed and the invitation has expired.",
             )
 
         if invitation.status != InvitationStatus.PENDING.value:

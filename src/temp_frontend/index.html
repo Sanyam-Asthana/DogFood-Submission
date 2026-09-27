@@ -715,6 +715,7 @@
         try {
           const user = JSON.parse(savedUserStr);
           setActiveUser(user);
+          syncUserProfile();
         } catch (e) {
           setStrangerState();
         }
@@ -723,6 +724,9 @@
       }
 
       loadAllEvents();
+
+      // Periodically sync user profile so role promotions/demotions appear in real time
+      setInterval(syncUserProfile, 8000);
     });
 
     // View Switching
@@ -732,6 +736,10 @@
       
       const target = document.getElementById(viewId);
       if (target) target.style.display = "block";
+
+      if (currentUser) {
+        syncUserProfile();
+      }
 
       if (viewId === "eventsView") {
         document.getElementById("navEventsBtn").classList.add("active");
@@ -814,6 +822,32 @@
       setStrangerState();
       switchView("eventsView");
       showToast("Signed out. You are now exploring as a stranger.", "info");
+    }
+
+    async function syncUserProfile() {
+      if (!currentUser || (!currentUser.token && !currentUser.session_token)) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/me`, {
+          headers: getAuthHeaders()
+        });
+        if (res.ok) {
+          const profile = await res.json();
+          if (profile && profile.role && profile.role !== currentUser.role) {
+            currentUser.role = profile.role;
+            currentUser.name = profile.name || currentUser.name;
+            localStorage.setItem("active_user", JSON.stringify(currentUser));
+            setActiveUser(currentUser);
+            showToast(`🎉 Platform role updated! You are now an ${profile.role === 'organizer' ? 'Organiser' : profile.role}.`, "success");
+            
+            const adminView = document.getElementById("adminView");
+            if (adminView && adminView.style.display === "block") {
+              setupAdminView();
+            }
+          }
+        }
+      } catch (e) {
+        // Background sync error, ignore
+      }
     }
 
     function getAuthHeaders() {
@@ -1011,7 +1045,27 @@
         return;
       }
 
-      // Check if current user is member
+      // 1. Platform Owners are forbidden from participating
+      if (currentUser.role === "owner") {
+        container.innerHTML = `
+          <div style="color: #fbbf24; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
+            <span>👑</span> Platform Owners manage the platform and are forbidden from participating in competitions.
+          </div>
+        `;
+        return;
+      }
+
+      // 2. Platform Organisers are forbidden from participating
+      if (currentUser.role === "organizer") {
+        container.innerHTML = `
+          <div style="color: #c4b5fd; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
+            <span>🛠️</span> Platform Organisers manage hackathons and are forbidden from participating in competitions.
+          </div>
+        `;
+        return;
+      }
+
+      // Check if current user is member (participant or judge)
       try {
         const res = await fetch(`${API_BASE}/api/events/${selectedEvent.id}/members`);
         const members = res.ok ? await res.json() : [];
@@ -1021,7 +1075,7 @@
           if (myMem.role === "judge") {
             container.innerHTML = `
               <div style="color: #60a5fa; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
-                <span>⚖️</span> You are a confirmed official Judge for this event!
+                <span>⚖️</span> You are an official Judge for this event. Judges cannot participate in competitions they evaluate.
               </div>
             `;
           } else {
@@ -1032,12 +1086,22 @@
             `;
           }
         } else {
-          container.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-              <span style="font-size: 0.88rem; color: #cbd5e1;">You are not yet registered for this competition.</span>
-              <button class="btn btn-primary btn-sm" onclick="handleJoinEventModal()">🚀 Register as Participant</button>
-            </div>
-          `;
+          const isClosed = selectedEvent.status === 'closed' || selectedEvent.is_active === false || 
+            (selectedEvent.submissions_close && new Date(selectedEvent.submissions_close) <= new Date());
+          if (isClosed) {
+            container.innerHTML = `
+              <div style="color: #f87171; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
+                <span>⛔</span> Submissions for this event are closed. Registration is no longer available.
+              </div>
+            `;
+          } else {
+            container.innerHTML = `
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <span style="font-size: 0.88rem; color: #cbd5e1;">You are eligible to participate in this competition.</span>
+                <button class="btn btn-primary btn-sm" onclick="handleJoinEventModal()">🚀 Register as Participant</button>
+              </div>
+            `;
+          }
         }
       } catch (e) {
         container.innerHTML = `<button class="btn btn-primary btn-sm" onclick="handleJoinEventModal()">🚀 Register as Participant</button>`;
@@ -1052,6 +1116,17 @@
         openAuthModal('login');
         return;
       }
+      if (currentUser.role === "owner" || currentUser.role === "organizer") {
+        showToast("Platform Owners and Organisers are forbidden from participating in hackathons.", "error");
+        return;
+      }
+      const isClosed = selectedEvent.status === 'closed' || selectedEvent.is_active === false || 
+        (selectedEvent.submissions_close && new Date(selectedEvent.submissions_close) <= new Date());
+      if (isClosed) {
+        showToast("Cannot join event: submissions are closed for this hackathon.", "error");
+        return;
+      }
+
       try {
         const res = await fetch(`${API_BASE}/api/events/${selectedEvent.id}/join`, {
           method: "POST",
@@ -1324,7 +1399,7 @@
             <div>
               <div style="font-size: 1.1rem; font-weight: 700; color: #fff;">Judge Invitation: ${i.event_name || i.event_id}</div>
               <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
-                Invited by: <strong>${i.inviter_name || i.inviter_id}</strong> &bull; Status: <span class="status-badge ${i.status === 'accepted' ? 'status-open' : i.status === 'declined' ? 'status-closed' : 'status-upcoming'}">${i.status}</span>
+                Invited by: <strong>${i.inviter_name || i.inviter_id}</strong> &bull; Status: <span class="status-badge ${i.status === 'accepted' ? 'status-open' : (i.status === 'declined' || i.status === 'expired') ? 'status-closed' : 'status-upcoming'}">${i.status.toUpperCase()}</span>
               </div>
             </div>
 
@@ -1332,6 +1407,11 @@
               <div style="display: flex; gap: 8px;">
                 <button class="btn btn-primary btn-sm" onclick="respondInvitation('${i.id}', true)">Accept & Become Judge</button>
                 <button class="btn btn-outline btn-sm" onclick="respondInvitation('${i.id}', false)">Decline</button>
+              </div>
+            ` : i.status === 'expired' ? `
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="status-badge status-closed">EXPIRED</span>
+                <span style="font-size: 0.82rem; color: #f87171; font-weight: 500;">(Event Closed)</span>
               </div>
             ` : `
               <span class="status-badge ${i.status === 'accepted' ? 'status-open' : 'status-closed'}">${i.status.toUpperCase()}</span>
@@ -1473,29 +1553,35 @@
 
         const isOwner = (currentUser && currentUser.role === 'owner') || currentRole === 'owner';
 
-        tbody.innerHTML = users.map(u => `
+        tbody.innerHTML = users.map(u => {
+          const rawRole = u.role || 'user';
+          const normalizedRole = (rawRole === 'participant' || rawRole === 'user') ? 'user' : (rawRole === 'organizer' ? 'organizer' : rawRole);
+          const roleDisplay = normalizedRole === 'organizer' ? 'organiser' : normalizedRole;
+
+          return `
           <tr>
             <td><strong>${u.name || u.email.split('@')[0]}</strong></td>
             <td><code>${u.email}</code></td>
             <td>
-              <span class="role-badge ${u.role === 'owner' ? 'role-owner' : u.role === 'organizer' ? 'role-organizer' : u.role === 'judge' ? 'role-judge' : 'role-user'}">
-                ${u.role === 'organizer' ? 'organiser' : u.role}
+              <span class="role-badge ${normalizedRole === 'owner' ? 'role-owner' : normalizedRole === 'organizer' ? 'role-organizer' : normalizedRole === 'judge' ? 'role-judge' : 'role-user'}">
+                ${roleDisplay}
               </span>
             </td>
             <td><code style="font-size: 0.78rem; color: var(--text-muted);">${u.id}</code></td>
             <td style="text-align: right;">
-              ${isOwner && (u.role === 'user' || u.role === 'participant') ? `
+              ${isOwner && (normalizedRole === 'user') ? `
                 <button class="btn btn-primary btn-sm" onclick="promoteToOrganizer('${u.id}')">⬆️ Promote to Organiser</button>
               ` : ''}
-              ${isOwner && u.role === 'organizer' ? `
+              ${isOwner && normalizedRole === 'organizer' ? `
                 <button class="btn btn-danger btn-sm" onclick="demoteToUser('${u.id}')">⬇️ Demote to User</button>
               ` : ''}
-              ${u.role === 'owner' ? `
+              ${normalizedRole === 'owner' ? `
                 <span style="color: #fbbf24; font-size: 0.8rem; font-weight: 700;">👑 Platform Owner</span>
               ` : ''}
             </td>
           </tr>
-        `).join('');
+          `;
+        }).join('');
       } catch (err) {
         tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger); padding: 30px;">${err.message}</td></tr>`;
       }

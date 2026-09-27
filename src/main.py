@@ -57,6 +57,17 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Seeding fixtures encountered an issue: {e}")
 
+    # Ensure all site-level accounts with legacy 'participant' role are normalized to 'user'
+    try:
+        from src.database import SessionLocal
+        from src.models.user import User, UserRole
+        db = SessionLocal()
+        db.query(User).filter(User.role == "participant").update({"role": UserRole.USER.value})
+        db.commit()
+        db.close()
+    except Exception as e:
+        logger.warning(f"Role normalization encountered an issue: {e}")
+
     yield
     logger.info("Shutting down DOGFOOD Hackathon Portal API.")
 

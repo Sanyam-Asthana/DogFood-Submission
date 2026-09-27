@@ -25,6 +25,7 @@ class InvitationStatus(str, enum.Enum):
     PENDING = "pending"
     ACCEPTED = "accepted"
     DECLINED = "declined"
+    EXPIRED = "expired"
 
 
 class User(Base):
@@ -36,7 +37,7 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     name = Column(String(255), nullable=False)
     role = Column(String(32), default=UserRole.USER.value, nullable=False)
-    session_token = Column(String(128), unique=True, index=True, nullable=True)
+    session_token = Column(String(255), index=True, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships
