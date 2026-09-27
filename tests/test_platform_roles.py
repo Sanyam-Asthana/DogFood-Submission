@@ -184,11 +184,28 @@ def test_event_participation_and_judge_flow(client):
     assert res_accept.status_code == 200
     assert res_accept.json()["status"] == "accepted"
 
-    # 6. Verify Charlie is now listed in event judges
-    res_judges = client.get("/api/events/evt_hack_01/judges")
+    # 6. Verify Organizer (Bob) can see judges
+    res_judges = client.get("/api/events/evt_hack_01/judges", headers={"X-Session-Token": "tok_bob"})
     assert res_judges.status_code == 200
     judges = res_judges.json()
     assert any(j["user_id"] == "user_charlie" and j["role"] == "judge" for j in judges)
+
+    # 7. Verify Judge (Charlie) CANNOT see event judges list (403 Forbidden)
+    res_judge_forbidden = client.get("/api/events/evt_hack_01/judges", headers={"X-Session-Token": "tok_charlie"})
+    assert res_judge_forbidden.status_code == 403
+
+    # 8. Verify Judge (Charlie) CANNOT see event participants list (403 Forbidden)
+    res_part_forbidden = client.get("/api/events/evt_hack_01/participants", headers={"X-Session-Token": "tok_charlie"})
+    assert res_part_forbidden.status_code == 403
+
+    # 9. Verify Charlie CAN check their own membership
+    res_my_mem = client.get("/api/events/evt_hack_01/my-membership", headers={"X-Session-Token": "tok_charlie"})
+    assert res_my_mem.status_code == 200
+    assert res_my_mem.json()["role"] == "judge"
+
+    # 10. Verify Organizer can see participants list
+    res_part_org = client.get("/api/events/evt_hack_01/participants", headers={"X-Session-Token": "tok_bob"})
+    assert res_part_org.status_code == 200
 
 
 def test_owner_promote_demote_restrictions(client):
@@ -391,4 +408,145 @@ def test_judge_invitation_expires_when_event_closed(client):
     )
     assert res_closed_invite.status_code == 400
     assert "closed" in res_closed_invite.json()["detail"].lower()
+    db.close()
+
+
+def test_invite_user_does_not_make_participant_and_accept_revokes_participant(client):
+    db = TestingSessionLocal()
+    # Setup open event evt_open_test
+    res_evt = client.post(
+        "/api/events",
+        json={
+            "id": "evt_open_test",
+            "name": "Judge Flow Hackathon",
+            "submissions_close": (datetime.now(timezone.utc) + timedelta(days=5)).isoformat(),
+        },
+        headers={"X-Session-Token": "tok_bob"},
+    )
+    assert res_evt.status_code == 201
+
+    # Create two users: user_frank and user_grace
+    frank = User(id="user_frank", email="frank@test.org", name="Frank", role=UserRole.USER.value, session_token="tok_frank")
+    grace = User(id="user_grace", email="grace@test.org", name="Grace", role=UserRole.USER.value, session_token="tok_grace")
+    db.add_all([frank, grace])
+    db.commit()
+
+    # 1. Grace joins as a participant
+    res_grace_join = client.post("/api/events/evt_open_test/join", headers={"X-Session-Token": "tok_grace"})
+    assert res_grace_join.status_code == 201
+
+    # 2. Bob invites Frank (who has NOT registered) to judge
+    res_frank_inv = client.post(
+        "/api/events/evt_open_test/judges/invite",
+        json={"user_id": "user_frank"},
+        headers={"X-Session-Token": "tok_bob"},
+    )
+    assert res_frank_inv.status_code == 201
+
+    # Verify Frank is NOT in participants!
+    res_parts = client.get("/api/events/evt_open_test/participants", headers={"X-Session-Token": "tok_bob"})
+    assert res_parts.status_code == 200
+    parts = res_parts.json()
+    assert not any(p["user_id"] == "user_frank" for p in parts)
+    assert any(p["user_id"] == "user_grace" for p in parts)
+
+    # Verify Frank is in invited judges!
+    res_invs = client.get("/api/events/evt_open_test/judges/invitations", headers={"X-Session-Token": "tok_bob"})
+    assert res_invs.status_code == 200
+    invs = res_invs.json()
+    assert any(i["invitee_id"] == "user_frank" and i["status"] == "pending" for i in invs)
+
+    # 3. Bob also invites Grace (who IS currently a registered participant) to judge
+    res_grace_inv = client.post(
+        "/api/events/evt_open_test/judges/invite",
+        json={"user_id": "user_grace"},
+        headers={"X-Session-Token": "tok_bob"},
+    )
+    assert res_grace_inv.status_code == 201
+    grace_inv_id = res_grace_inv.json()["id"]
+
+    # Grace accepts judge invitation
+    res_grace_accept = client.post(
+        f"/api/invitations/{grace_inv_id}/accept",
+        headers={"X-Session-Token": "tok_grace"},
+    )
+    assert res_grace_accept.status_code == 200
+
+    # Verify Grace's participant status is revoked:
+    # She should now be in judges, and NOT in participants!
+    res_judges_after = client.get("/api/events/evt_open_test/judges", headers={"X-Session-Token": "tok_bob"})
+    assert res_judges_after.status_code == 200
+    assert any(j["user_id"] == "user_grace" for j in res_judges_after.json())
+
+    res_parts_after = client.get("/api/events/evt_open_test/participants", headers={"X-Session-Token": "tok_bob"})
+    assert res_parts_after.status_code == 200
+    assert not any(p["user_id"] == "user_grace" for p in res_parts_after.json())
+
+    # Grace cannot join as participant anymore because she is now a judge
+    res_rejoin = client.post("/api/events/evt_open_test/join", headers={"X-Session-Token": "tok_grace"})
+    assert res_rejoin.status_code == 403
+    db.close()
+
+
+def test_unregister_participant_and_judge(client):
+    db = TestingSessionLocal()
+    # Create user_helen and user_ian
+    helen = User(id="user_helen", email="helen@test.org", name="Helen", role=UserRole.USER.value, session_token="tok_helen")
+    ian = User(id="user_ian", email="ian@test.org", name="Ian", role=UserRole.USER.value, session_token="tok_ian")
+    db.add_all([helen, ian])
+    db.commit()
+
+    # 1. Helen joins evt_open_test as participant
+    res_join = client.post("/api/events/evt_open_test/join", headers={"X-Session-Token": "tok_helen"})
+    assert res_join.status_code == 201
+
+    # Verify Helen is participant
+    res_mem = client.get("/api/events/evt_open_test/my-membership", headers={"X-Session-Token": "tok_helen"})
+    assert res_mem.status_code == 200
+    assert res_mem.json()["role"] == "participant"
+
+    # Helen unregisters as participant
+    res_leave = client.post("/api/events/evt_open_test/leave", headers={"X-Session-Token": "tok_helen"})
+    assert res_leave.status_code == 200
+    assert "unregistered as participant" in res_leave.json()["message"].lower()
+
+    # Helen is no longer a member
+    res_mem_after = client.get("/api/events/evt_open_test/my-membership", headers={"X-Session-Token": "tok_helen"})
+    assert res_mem_after.status_code == 200
+    assert res_mem_after.json() is None
+
+    # Leaving again returns 400
+    res_leave_again = client.post("/api/events/evt_open_test/leave", headers={"X-Session-Token": "tok_helen"})
+    assert res_leave_again.status_code == 400
+
+    # 2. Ian is invited as judge to evt_open_test and accepts
+    res_inv = client.post(
+        "/api/events/evt_open_test/judges/invite",
+        json={"user_id": "user_ian"},
+        headers={"X-Session-Token": "tok_bob"},
+    )
+    assert res_inv.status_code == 201
+    ian_inv_id = res_inv.json()["id"]
+
+    res_accept = client.post(f"/api/invitations/{ian_inv_id}/accept", headers={"X-Session-Token": "tok_ian"})
+    assert res_accept.status_code == 200
+
+    # Verify Ian is judge
+    res_ian_mem = client.get("/api/events/evt_open_test/my-membership", headers={"X-Session-Token": "tok_ian"})
+    assert res_ian_mem.status_code == 200
+    assert res_ian_mem.json()["role"] == "judge"
+
+    # Ian steps down / unregisters as judge
+    res_ian_leave = client.post("/api/events/evt_open_test/leave", headers={"X-Session-Token": "tok_ian"})
+    assert res_ian_leave.status_code == 200
+    assert "unregistered as judge" in res_ian_leave.json()["message"].lower()
+
+    # Verify Ian is no longer listed in judges
+    res_judges = client.get("/api/events/evt_open_test/judges", headers={"X-Session-Token": "tok_bob"})
+    assert not any(j["user_id"] == "user_ian" for j in res_judges.json())
+
+    # Verify Ian can now join as participant if he wishes (since he is no longer a judge)
+    res_ian_join = client.post("/api/events/evt_open_test/join", headers={"X-Session-Token": "tok_ian"})
+    assert res_ian_join.status_code == 201
+    assert res_ian_join.json()["role"] == "participant"
     db.close()

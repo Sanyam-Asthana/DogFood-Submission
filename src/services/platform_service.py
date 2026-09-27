@@ -276,6 +276,47 @@ class PlatformService:
         return membership
 
     @staticmethod
+    def leave_event(db: Session, event_id: str, user: User) -> dict:
+        """Unregister / withdraw the current user from an event (as a participant or judge)."""
+        event = db.query(Event).filter(Event.id == event_id).first()
+        if not event:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Event '{event_id}' not found.",
+            )
+
+        # Retrieve membership
+        membership = db.query(EventMember).filter(
+            EventMember.event_id == event_id,
+            EventMember.user_id == user.id,
+        ).first()
+
+        if not membership:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="You are not registered for this event.",
+            )
+
+        role = membership.role
+        db.delete(membership)
+
+        # If user was a judge, mark any accepted judge invitation as declined / revoked
+        if role == EventRole.JUDGE.value:
+            db.query(JudgeInvitation).filter(
+                JudgeInvitation.event_id == event_id,
+                JudgeInvitation.invitee_id == user.id,
+                JudgeInvitation.status == InvitationStatus.ACCEPTED.value,
+            ).update({"status": InvitationStatus.DECLINED.value})
+
+        db.commit()
+        logger.info(f"User '{user.email}' unregistered as {role} from event '{event_id}'.")
+        return {
+            "message": f"Successfully unregistered as {role} from {event.name}",
+            "event_id": event_id,
+            "previous_role": role,
+        }
+
+    @staticmethod
     def invite_judge(
         db: Session,
         event_id: str,
@@ -341,20 +382,6 @@ class PlatformService:
                 detail=f"A pending invitation for '{invitee.email}' is already awaiting response.",
             )
 
-        # 6. Ensure user is at least an event member (participant)
-        membership = db.query(EventMember).filter(
-            EventMember.event_id == event_id,
-            EventMember.user_id == invitee.id,
-        ).first()
-        if not membership:
-            membership = EventMember(
-                id=f"mem_{secrets.token_hex(6)}",
-                event_id=event_id,
-                user_id=invitee.id,
-                role=EventRole.PARTICIPANT.value,
-            )
-            db.add(membership)
-
         invitation = JudgeInvitation(
             id=f"inv_{secrets.token_hex(8)}",
             event_id=event_id,
@@ -365,7 +392,7 @@ class PlatformService:
         db.add(invitation)
         db.commit()
         db.refresh(invitation)
-        logger.info(f"Organizer '{inviter.id}' invited '{invitee.email}' to judge event '{event_id}'.")
+        logger.info(f"Organizer '{inviter.id}' invited user '{invitee.email}' to judge event '{event_id}'.")
         return invitation
 
     @staticmethod
@@ -459,8 +486,47 @@ class PlatformService:
         ).all()
 
     @staticmethod
+    def get_event_participants(db: Session, event_id: str) -> List[EventMember]:
+        """List all confirmed participants for a specific event."""
+        return db.query(EventMember).filter(
+            EventMember.event_id == event_id,
+            EventMember.role == EventRole.PARTICIPANT.value,
+        ).all()
+
+    @staticmethod
     def get_event_members(db: Session, event_id: str) -> List[EventMember]:
         """List all members (participants and judges) for an event."""
         return db.query(EventMember).filter(
             EventMember.event_id == event_id,
         ).all()
+
+    @staticmethod
+    def get_my_event_membership(db: Session, event_id: str, user: User) -> Optional[EventMember]:
+        """Get the current user's membership for a specific event."""
+        return db.query(EventMember).filter(
+            EventMember.event_id == event_id,
+            EventMember.user_id == user.id,
+        ).first()
+
+    @staticmethod
+    def get_event_judge_invitations(
+        db: Session,
+        event_id: str,
+        status: Optional[str] = None,
+    ) -> List[JudgeInvitation]:
+        """List judge invitations for a specific event (Organizer and Owner only)."""
+        query = db.query(JudgeInvitation).filter(JudgeInvitation.event_id == event_id)
+        if status:
+            query = query.filter(JudgeInvitation.status == status)
+        invitations = query.order_by(JudgeInvitation.created_at.desc()).all()
+
+        needs_commit = False
+        for inv in invitations:
+            if inv.status == InvitationStatus.PENDING.value and inv.event:
+                if PlatformService.is_event_closed(inv.event):
+                    inv.status = InvitationStatus.EXPIRED.value
+                    needs_commit = True
+        if needs_commit:
+            db.commit()
+
+        return invitations

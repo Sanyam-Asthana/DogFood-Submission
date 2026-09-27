@@ -545,27 +545,52 @@
         </div>
       </div>
 
-      <!-- Confirmed Judges List -->
-      <div>
-        <strong style="display: block; margin-bottom: 10px; font-size: 0.95rem;">Confirmed Event Judges:</strong>
-        <div id="modalJudgesContainer" style="display: flex; flex-direction: column; gap: 6px;">
-          <!-- Judges items -->
-        </div>
-      </div>
-
-      <!-- Organizer Management Controls (Visible to Organizer or Owner) -->
+      <!-- Organizer Management Controls (Visible only to Organizer or Owner) -->
       <div id="modalOrganizerPanel" style="display:none; border-top: 1px solid var(--surface-border); padding-top: 18px; margin-top: 10px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <strong style="color: #c4b5fd;">🛠️ Organizer Controls</strong>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <strong style="color: #c4b5fd; font-size: 1.05rem;">🛠️ Event Administration</strong>
           <span class="role-badge role-organizer">Organizer Privileges</span>
         </div>
 
-        <div style="display: flex; flex-direction: column; gap: 14px;">
-          <!-- Invite Judge -->
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <!-- Confirmed Judges List (Organizer & Owner Only) -->
           <div style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--surface-border); border-radius: 8px; padding: 12px;">
-            <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">Invite Participant to Judge:</label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <strong style="font-size: 0.88rem; color: #93c5fd;">⚖️ Confirmed Judges:</strong>
+              <button class="btn btn-outline btn-sm" style="font-size: 0.72rem; padding: 2px 6px;" onclick="loadModalJudges()">↻ Refresh</button>
+            </div>
+            <div id="modalJudgesContainer" style="display: flex; flex-direction: column; gap: 6px;">
+              <!-- Judges items -->
+            </div>
+          </div>
+
+          <!-- Invited Judges (Pending Responses) -->
+          <div style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--surface-border); border-radius: 8px; padding: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <strong style="font-size: 0.88rem; color: #fde047;">📬 Invited Judges (Awaiting Response):</strong>
+              <button class="btn btn-outline btn-sm" style="font-size: 0.72rem; padding: 2px 6px;" onclick="loadModalInvitedJudges()">↻ Refresh</button>
+            </div>
+            <div id="modalInvitedJudgesContainer" style="display: flex; flex-direction: column; gap: 6px;">
+              <!-- Invited judges items -->
+            </div>
+          </div>
+
+          <!-- Registered Participants List (Organizer & Owner Only) -->
+          <div style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--surface-border); border-radius: 8px; padding: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <strong style="font-size: 0.88rem; color: #34d399;">🚀 Registered Participants:</strong>
+              <button class="btn btn-outline btn-sm" style="font-size: 0.72rem; padding: 2px 6px;" onclick="loadModalParticipants()">↻ Refresh</button>
+            </div>
+            <div id="modalParticipantsContainer" style="display: flex; flex-direction: column; gap: 6px;">
+              <!-- Participants items -->
+            </div>
+          </div>
+
+          <!-- Invite User to Judge Form -->
+          <div style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--surface-border); border-radius: 8px; padding: 12px;">
+            <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">Invite User to Judge:</label>
             <form onsubmit="handleModalInviteJudge(event)" style="display: flex; gap: 8px;">
-              <input type="text" id="modalInviteInput" placeholder="Participant Email or User ID" required style="flex: 1;">
+              <input type="text" id="modalInviteInput" placeholder="User Email or User ID" required style="flex: 1;">
               <button type="submit" class="btn btn-primary btn-sm">Send Judge Invite</button>
             </form>
           </div>
@@ -983,14 +1008,19 @@
         // Live Countdown
         startModalCountdown(selectedEvent.submissions_close, selectedEvent.is_submission_open);
 
-        // Participation & Judges
+        // Participation
         await renderModalParticipation();
-        await loadModalJudges();
 
         // Organizer panel visibility
         const isOrgOrOwner = (currentUser && (currentUser.role === 'owner' || currentUser.role === 'organizer')) || 
                              (currentRole === 'organizer' || currentRole === 'owner');
         document.getElementById("modalOrganizerPanel").style.display = isOrgOrOwner ? "block" : "none";
+
+        if (isOrgOrOwner) {
+          await loadModalJudges();
+          await loadModalInvitedJudges();
+          await loadModalParticipants();
+        }
 
         document.getElementById("eventDetailsModal").classList.add("open");
       } catch (err) {
@@ -1065,23 +1095,30 @@
         return;
       }
 
-      // Check if current user is member (participant or judge)
+      // Check if current user is member (participant or judge) via my-membership
       try {
-        const res = await fetch(`${API_BASE}/api/events/${selectedEvent.id}/members`);
-        const members = res.ok ? await res.json() : [];
-        const myMem = members.find(m => m.user_id === currentUser.user_id || m.user_email === currentUser.email);
+        const res = await fetch(`${API_BASE}/api/events/${selectedEvent.id}/my-membership`, {
+          headers: getAuthHeaders()
+        });
+        const myMem = res.ok ? await res.json() : null;
 
         if (myMem) {
           if (myMem.role === "judge") {
             container.innerHTML = `
-              <div style="color: #60a5fa; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
-                <span>⚖️</span> You are an official Judge for this event. Judges cannot participate in competitions they evaluate.
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div style="color: #60a5fa; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
+                  <span>⚖️</span> You are an official Judge for this event.
+                </div>
+                <button class="btn btn-outline btn-sm" style="color: #f87171; border-color: rgba(239, 68, 68, 0.4); font-size: 0.8rem;" onclick="handleLeaveEventModal()">Step Down as Judge</button>
               </div>
             `;
           } else {
             container.innerHTML = `
-              <div style="color: #34d399; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
-                <span>✅</span> You are registered as a Participant in this hackathon!
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div style="color: #34d399; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
+                  <span>✅</span> You are registered as a Participant in this hackathon!
+                </div>
+                <button class="btn btn-outline btn-sm" style="color: #f87171; border-color: rgba(239, 68, 68, 0.4); font-size: 0.8rem;" onclick="handleLeaveEventModal()">Unregister</button>
               </div>
             `;
           }
@@ -1141,20 +1178,122 @@
       }
     }
 
+    async function handleLeaveEventModal() {
+      if (!selectedEvent) return;
+      if (!confirm(`Are you sure you want to withdraw/unregister from ${selectedEvent.name}?`)) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/events/${selectedEvent.id}/leave`, {
+          method: "POST",
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        showToast(data.message || "Successfully unregistered from event.", "info");
+        await renderModalParticipation();
+        const isOrgOrOwner = (currentUser && (currentUser.role === 'owner' || currentUser.role === 'organizer')) || 
+                             (currentRole === 'organizer' || currentRole === 'owner');
+        if (isOrgOrOwner) {
+          await loadModalJudges();
+          await loadModalInvitedJudges();
+          await loadModalParticipants();
+        }
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
     async function loadModalJudges() {
       const container = document.getElementById("modalJudgesContainer");
       if (!container || !selectedEvent) return;
       try {
-        const res = await fetch(`${API_BASE}/api/events/${selectedEvent.id}/judges`);
+        const res = await fetch(`${API_BASE}/api/events/${selectedEvent.id}/judges`, {
+          headers: getAuthHeaders()
+        });
+        if (res.status === 403 || res.status === 401) {
+          container.innerHTML = `<span style="font-size: 0.85rem; color: var(--text-muted);">Judges list is restricted to Organizers and Owners.</span>`;
+          return;
+        }
         const judges = res.ok ? await res.json() : [];
         if (!judges || judges.length === 0) {
           container.innerHTML = `<span style="font-size: 0.85rem; color: var(--text-muted);">No judges confirmed yet.</span>`;
           return;
         }
         container.innerHTML = judges.map(j => `
-          <div style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--surface-border); border-radius: 6px; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 0.88rem; font-weight: 600; color: #fff;">⚖️ ${j.user_name || j.user_email || j.user_id}</span>
+          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--surface-border); border-radius: 6px; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span style="font-size: 0.88rem; font-weight: 600; color: #fff;">⚖️ ${j.user_name || j.user_email || j.user_id}</span>
+              ${j.user_email ? `<span style="font-size: 0.78rem; color: var(--text-muted); margin-left: 6px;">(${j.user_email})</span>` : ''}
+            </div>
             <span class="role-badge role-judge">Confirmed Judge</span>
+          </div>
+        `).join('');
+      } catch (e) {
+        container.innerHTML = `<span style="font-size: 0.85rem; color: var(--danger);">${e.message}</span>`;
+      }
+    }
+
+    async function loadModalParticipants() {
+      const container = document.getElementById("modalParticipantsContainer");
+      if (!container || !selectedEvent) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/events/${selectedEvent.id}/participants`, {
+          headers: getAuthHeaders()
+        });
+        if (res.status === 403 || res.status === 401) {
+          container.innerHTML = `<span style="font-size: 0.85rem; color: var(--text-muted);">Participants list is restricted to Organizers and Owners.</span>`;
+          return;
+        }
+        const participants = res.ok ? await res.json() : [];
+        if (!participants || participants.length === 0) {
+          container.innerHTML = `<span style="font-size: 0.85rem; color: var(--text-muted);">No participants registered yet.</span>`;
+          return;
+        }
+        container.innerHTML = participants.map(p => `
+          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--surface-border); border-radius: 6px; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <div>
+              <span style="font-size: 0.88rem; font-weight: 600; color: #fff;">🚀 ${p.user_name || p.user_email || p.user_id}</span>
+              ${p.user_email ? `<span style="font-size: 0.78rem; color: var(--text-muted); margin-left: 6px;">(${p.user_email})</span>` : ''}
+            </div>
+            <button class="btn btn-outline btn-sm" style="font-size: 0.75rem; padding: 2px 8px;" onclick="prefillAndInviteJudge('${p.user_email || p.user_id}')">Invite as Judge</button>
+          </div>
+        `).join('');
+      } catch (e) {
+        container.innerHTML = `<span style="font-size: 0.85rem; color: var(--danger);">${e.message}</span>`;
+      }
+    }
+
+    function prefillAndInviteJudge(val) {
+      const input = document.getElementById("modalInviteInput");
+      if (input) {
+        input.value = val;
+        input.focus();
+        showToast(`Selected ${val} for judge invitation. Click 'Send Judge Invite' to confirm.`, "info");
+      }
+    }
+
+    async function loadModalInvitedJudges() {
+      const container = document.getElementById("modalInvitedJudgesContainer");
+      if (!container || !selectedEvent) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/events/${selectedEvent.id}/judges/invitations?status=pending`, {
+          headers: getAuthHeaders()
+        });
+        if (res.status === 403 || res.status === 401) {
+          container.innerHTML = `<span style="font-size: 0.85rem; color: var(--text-muted);">Restricted to Organizers and Owners.</span>`;
+          return;
+        }
+        const invs = res.ok ? await res.json() : [];
+        if (!invs || invs.length === 0) {
+          container.innerHTML = `<span style="font-size: 0.85rem; color: var(--text-muted);">No pending judge invitations.</span>`;
+          return;
+        }
+        container.innerHTML = invs.map(i => `
+          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--surface-border); border-radius: 6px; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <div>
+              <span style="font-size: 0.88rem; font-weight: 600; color: #fff;">📬 ${i.invitee_email || i.invitee_id}</span>
+              <span style="font-size: 0.78rem; color: #94a3b8; margin-left: 6px;">(Invited by: ${i.inviter_name || i.inviter_id})</span>
+            </div>
+            <span class="status-badge status-upcoming">Pending Response</span>
           </div>
         `).join('');
       } catch (e) {
@@ -1177,6 +1316,9 @@
         if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
         showToast(`Judge invitation sent to ${data.invitee_email || data.invitee_id}!`, "success");
         document.getElementById("modalInviteInput").value = "";
+        await loadModalJudges();
+        await loadModalInvitedJudges();
+        await loadModalParticipants();
       } catch (err) {
         showToast(err.message, "error");
       }

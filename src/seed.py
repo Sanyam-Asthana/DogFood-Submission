@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from src.database import SessionLocal, init_db
-from src.models.user import User, UserRole
+from src.models.user import User, UserRole, EventMember, EventRole
 from src.models.event import Event, Track
 
 logger = logging.getLogger(__name__)
@@ -135,7 +135,24 @@ def seed_fixtures(fixture_path: str = "fixtures.json") -> None:
 
             db.commit()
 
-        logger.info(f"Database seeded successfully with event '{event_data.get('name', 'evt_01')}' and tracks.")
+            # 4. Link fixture judges and participants to event
+            event_members_to_seed = [
+                ("mem_jdg_01", event_id, "jdg_01", EventRole.JUDGE.value),
+                ("mem_jdg_02", event_id, "jdg_02", EventRole.JUDGE.value),
+                ("mem_usr_prt", event_id, "usr_prt", EventRole.PARTICIPANT.value),
+            ]
+            for mem_id, e_id, u_id, role in event_members_to_seed:
+                existing_mem = db.query(EventMember).filter(
+                    EventMember.event_id == e_id,
+                    EventMember.user_id == u_id,
+                ).first()
+                if not existing_mem:
+                    db.add(EventMember(id=mem_id, event_id=e_id, user_id=u_id, role=role))
+                else:
+                    existing_mem.role = role
+            db.commit()
+
+        logger.info(f"Database seeded successfully with event '{event_data.get('name', 'evt_01')}', tracks, and event members.")
     finally:
         db.close()
 

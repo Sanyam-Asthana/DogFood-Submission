@@ -10,7 +10,7 @@ Handles:
 """
 
 import logging
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
@@ -146,14 +146,48 @@ def join_event(
     return _to_member_response(membership)
 
 
+@router.post(
+    "/events/{event_id}/leave",
+    summary="Leave / Unregister from Event",
+    description="Unregister the currently authenticated user from being a participant or judge for an event.",
+)
+@router.post(
+    "/events/{event_id}/unregister",
+    summary="Unregister from Event (Alias)",
+    description="Alias for /events/{event_id}/leave.",
+)
+def leave_event(
+    event_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return PlatformService.leave_event(db, event_id, current_user)
+
+
+@router.get(
+    "/events/{event_id}/my-membership",
+    response_model=Optional[EventMemberResponse],
+    summary="Get My Event Membership",
+    description="Check the current user's membership role for a specific event.",
+)
+def get_my_event_membership(
+    event_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    mem = PlatformService.get_my_event_membership(db, event_id, current_user)
+    return _to_member_response(mem) if mem else None
+
+
 @router.get(
     "/events/{event_id}/members",
     response_model=List[EventMemberResponse],
     summary="List Event Members",
-    description="List all members (participants and judges) associated with an event.",
+    description="List all members (participants and judges) associated with an event. Only Organizers and Owners can access.",
 )
 def list_event_members(
     event_id: str,
+    current_user: User = Depends(require_organizer),
     db: Session = Depends(get_db),
 ):
     members = PlatformService.get_event_members(db, event_id)
@@ -161,25 +195,57 @@ def list_event_members(
 
 
 @router.get(
+    "/events/{event_id}/participants",
+    response_model=List[EventMemberResponse],
+    summary="List Event Participants",
+    description="List all confirmed participants for a specific event. Only Organizers and Owners can access.",
+)
+def list_event_participants(
+    event_id: str,
+    current_user: User = Depends(require_organizer),
+    db: Session = Depends(get_db),
+):
+    participants = PlatformService.get_event_participants(db, event_id)
+    return [_to_member_response(p) for p in participants]
+
+
+@router.get(
     "/events/{event_id}/judges",
     response_model=List[EventMemberResponse],
     summary="List Confirmed Event Judges",
-    description="List all confirmed judges for a specific event.",
+    description="List all confirmed judges for a specific event. Only Organizers and Owners can access (judges cannot view).",
 )
 def list_event_judges(
     event_id: str,
+    current_user: User = Depends(require_organizer),
     db: Session = Depends(get_db),
 ):
     judges = PlatformService.get_event_judges(db, event_id)
     return [_to_member_response(j) for j in judges]
 
 
+@router.get(
+    "/events/{event_id}/judges/invitations",
+    response_model=List[JudgeInvitationResponse],
+    summary="List Event Judge Invitations",
+    description="List all judge invitations sent for this event. Requires Organizer or Owner role.",
+)
+def list_event_judge_invitations(
+    event_id: str,
+    status: Optional[str] = None,
+    current_user: User = Depends(require_organizer),
+    db: Session = Depends(get_db),
+):
+    invitations = PlatformService.get_event_judge_invitations(db, event_id, status)
+    return [_to_invitation_response(i) for i in invitations]
+
+
 @router.post(
     "/events/{event_id}/judges/invite",
     response_model=JudgeInvitationResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Invite Participant to Judge Event",
-    description="Invite a participant to become a Judge for this event. Requires Organizer or Owner role.",
+    summary="Invite User to Judge Event",
+    description="Invite any platform user to become a Judge for this event. Requires Organizer or Owner role.",
 )
 def invite_judge(
     event_id: str,
