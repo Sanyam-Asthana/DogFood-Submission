@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import settings
 from src.database import init_db
-from src.routers import events_router, auth_router, platform_router
+from src.routers import events_router, auth_router, platform_router, projects_router
 from src.services.platform_service import PlatformService
 import src.auth as auth
 from src.seed import seed_fixtures
@@ -119,6 +119,9 @@ app.include_router(auth_router, prefix=settings.API_PREFIX)
 app.include_router(auth_router)
 app.include_router(platform_router, prefix=settings.API_PREFIX)
 app.include_router(platform_router)
+app.include_router(projects_router, prefix=settings.API_PREFIX)
+app.include_router(projects_router)
+
 
 
 # Supabase Auth endpoints from existing auth_endpoint.py

@@ -14,6 +14,8 @@ from pathlib import Path
 from src.database import SessionLocal, init_db
 from src.models.user import User, UserRole, EventMember, EventRole
 from src.models.event import Event, Track
+from src.models.project import Project, Team
+
 
 logger = logging.getLogger(__name__)
 
@@ -150,11 +152,51 @@ def seed_fixtures(fixture_path: str = "fixtures.json") -> None:
                     db.add(EventMember(id=mem_id, event_id=e_id, user_id=u_id, role=role))
                 else:
                     existing_mem.role = role
+            # 5. Seed Teams
+            teams_data = fixtures.get("teams", [])
+            for tm in teams_data:
+                team_id = tm["id"]
+                team = db.query(Team).filter(Team.id == team_id).first()
+                if not team:
+                    team = Team(
+                        id=team_id,
+                        event_id=event_id,
+                        name=tm.get("name", team_id),
+                    )
+                    db.add(team)
+                else:
+                    team.name = tm.get("name", team_id)
             db.commit()
 
-        logger.info(f"Database seeded successfully with event '{event_data.get('name', 'evt_01')}', tracks, and event members.")
+            # 6. Seed Projects
+            projects_data = fixtures.get("projects", [])
+            for p in projects_data:
+                proj_id = p["id"]
+                proj = db.query(Project).filter(Project.id == proj_id).first()
+                sub_at = parse_iso_datetime(p.get("submitted_at"))
+                if not proj:
+                    proj = Project(
+                        id=proj_id,
+                        event_id=event_id,
+                        team_id=p.get("team"),
+                        track_id=p.get("track"),
+                        title=p.get("title", "Untitled Project"),
+                        summary=p.get("summary", ""),
+                        repo_url=p.get("repo_url", ""),
+                        submitted_at=sub_at,
+                        created_by="usr_prt",
+                    )
+                    db.add(proj)
+                else:
+                    proj.title = p.get("title", proj.title)
+                    proj.summary = p.get("summary", proj.summary)
+                    proj.repo_url = p.get("repo_url", proj.repo_url)
+            db.commit()
+
+        logger.info(f"Database seeded successfully with event '{event_data.get('name', 'evt_01')}', tracks, members, teams, and {len(fixtures.get('projects', []))} projects.")
     finally:
         db.close()
+
 
 
 if __name__ == "__main__":

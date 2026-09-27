@@ -1,5 +1,6 @@
 from src.models.user import User, UserRole, EventRole, EventMember, JudgeInvitation, InvitationStatus
 from src.models.event import Event, Track
+from src.models.project import Project, Team
 
 __all__ = [
     "User",
@@ -10,4 +11,7 @@ __all__ = [
     "InvitationStatus",
     "Event",
     "Track",
+    "Project",
+    "Team",
 ]
+
