@@ -1,281 +1,1646 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            font-family: system-ui, -apple-system, sans-serif;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HackHub 2026 - Hackathon Portal</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --surface: #131c2e;
+      --surface-elevated: #1a253c;
+      --surface-border: #23314d;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --primary-glow: rgba(59, 130, 246, 0.25);
+      --purple: #8b5cf6;
+      --purple-hover: #7c3aed;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --radius: 10px;
+    }
 
-        body {
-            margin: 0;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #f4f6f9;
-        }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", Helvetica, Arial, sans-serif; }
+    body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
 
-        .card {
-            background: #fff;
-            padding: 32px;
-            border-radius: 12px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-            width: 100%;
-            max-width: 360px;
-        }
+    /* Top Navigation */
+    header {
+      background: rgba(19, 28, 46, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--surface-border);
+      padding: 14px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
 
-        h1 {
-            text-align: center;
-            margin-top: 0;
-            color: #1e293b;
-        }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #fff;
+      box-shadow: 0 0 15px var(--primary-glow);
+    }
+    .brand-text { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.5px; color: #fff; }
+    .brand-tag { font-size: 0.7rem; background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); padding: 2px 7px; border-radius: 999px; }
 
-        .tabs {
-            display: flex;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #e2e8f0;
-        }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .nav-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 8px 14px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .nav-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.05); }
+    .nav-btn.active { color: #fff; background: var(--surface-elevated); border: 1px solid var(--surface-border); }
 
-        .tab {
-            flex: 1;
-            padding: 10px;
-            text-align: center;
-            cursor: pointer;
-            border: none;
-            background: none;
-            font-size: 15px;
-            color: #64748b;
-            border-bottom: 2px solid transparent;
-        }
+    .user-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
 
-        .tab.active {
-            color: #2563eb;
-            border-bottom-color: #2563eb;
-            font-weight: 600;
-        }
+    /* Badges */
+    .role-badge {
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .role-owner { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .role-organizer { background: rgba(139, 92, 246, 0.15); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); }
+    .role-judge { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4); }
+    .role-participant { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .role-user { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+    .role-guest { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
 
-        input {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 14px;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            font-size: 14px;
-        }
+    /* Buttons */
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: 1px solid transparent;
+      outline: none;
+    }
+    .btn-primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; box-shadow: 0 4px 12px var(--primary-glow); }
+    .btn-primary:hover { background: linear-gradient(135deg, #2563eb, #1d4ed8); transform: translateY(-1px); }
+    .btn-owner { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: #fff; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); }
+    .btn-owner:hover { background: linear-gradient(135deg, #7c3aed, #6d28d9); transform: translateY(-1px); }
+    .btn-outline { background: transparent; border-color: var(--surface-border); color: var(--text-muted); }
+    .btn-outline:hover { color: #fff; background: rgba(255, 255, 255, 0.05); border-color: #64748b; }
+    .btn-danger { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #f87171; }
+    .btn-danger:hover { background: #ef4444; color: #fff; }
+    .btn-sm { padding: 6px 12px; font-size: 0.8rem; border-radius: 6px; }
 
-        button[type="submit"] {
-            width: 100%;
-            padding: 12px;
-            border: none;
-            border-radius: 8px;
-            background: #2563eb;
-            color: #fff;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-        }
+    /* Layout */
+    .main-container { max-width: 1240px; margin: 0 auto; padding: 32px 24px; flex: 1; width: 100%; }
 
-        button[type="submit"]:hover {
-            background: #1d4ed8;
-        }
+    /* Hero Banner */
+    .hero-banner {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
+      border: 1px solid var(--surface-border);
+      border-radius: 16px;
+      padding: 40px 32px;
+      margin-bottom: 36px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-banner::after {
+      content: "";
+      position: absolute;
+      top: -50%;
+      right: -10%;
+      width: 350px;
+      height: 350px;
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-banner h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 12px; color: #fff; }
+    .hero-banner p { font-size: 1.05rem; color: var(--text-muted); max-width: 680px; line-height: 1.5; }
 
-        #message {
-            text-align: center;
-            min-height: 20px;
-            margin: 10px 0 0;
-            font-size: 14px;
-        }
+    /* Grid Layouts */
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+    .section-title { font-size: 1.4rem; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px; }
 
-        #message.error {
-            color: #dc2626;
-        }
+    .events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 24px; }
+    
+    .event-card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 12px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 18px;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .event-card:hover { border-color: var(--primary); transform: translateY(-3px); box-shadow: 0 12px 24px -10px rgba(0,0,0,0.5); }
+    .event-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .event-card-title { font-size: 1.2rem; font-weight: 700; color: #fff; line-height: 1.3; }
+    .event-card-desc { font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
-        #message.success {
-            color: #16a34a;
-        }
+    .countdown-chip {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--surface-border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .countdown-chip-time { font-family: monospace; font-size: 1.15rem; font-weight: 800; color: #60a5fa; }
+    .countdown-chip-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
 
-        /* Dashboard */
-        .dashboard {
-            width: 100%;
-            max-width: 900px;
-            min-height: 100vh;
-            padding: 24px;
-        }
+    .status-badge {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+    .status-open { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .status-closed { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .status-upcoming { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
 
-        .navbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-        }
+    .track-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+    .track-pill { background: rgba(255, 255, 255, 0.04); border: 1px solid var(--surface-border); border-radius: 999px; padding: 4px 10px; font-size: 0.75rem; color: #cbd5e1; }
 
-        .navbar h1 {
-            margin: 0;
-        }
+    /* Modals & Dialogs */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 16px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 540px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+      position: relative;
+    }
+    .modal-card h2 { font-size: 1.35rem; font-weight: 800; color: #fff; display: flex; justify-content: space-between; align-items: center; }
 
-        .logout-btn {
-            padding: 10px 18px;
-            border: 1px solid #cbd5e1;
-            background: #fff;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            color: #dc2626;
-        }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
+    input, select, textarea {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--surface-border);
+      color: #fff;
+      padding: 11px 14px;
+      border-radius: 8px;
+      font-size: 0.92rem;
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); }
 
-        .logout-btn:hover {
-            background: #fef2f2;
-        }
+    /* Tables */
+    .table-container { background: var(--surface); border: 1px solid var(--surface-border); border-radius: 12px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
+    th { background: rgba(0, 0, 0, 0.25); padding: 14px 18px; color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--surface-border); }
+    td { padding: 14px 18px; border-bottom: 1px solid var(--surface-border); color: #cbd5e1; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
 
-        .dashboard-empty {
-            background: #fff;
-            border-radius: 12px;
-            border: 1px dashed #cbd5e1;
-            padding: 48px;
-            text-align: center;
-            color: #64748b;
-        }
-    </style>
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      max-width: 420px;
+      padding: 14px 20px;
+      border-radius: 10px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+      z-index: 2000;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .toast-success { background: #064e3b; color: #a7f3d0; border: 1px solid #10b981; }
+    .toast-error { background: #7f1d1d; color: #fecaca; border: 1px solid #ef4444; }
+    .toast-info { background: #1e3a8a; color: #bfdbfe; border: 1px solid #3b82f6; }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--surface-border);
+      padding: 24px 28px;
+      background: var(--surface);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    /* Dev Drawer */
+    #devToolsDrawer {
+      display: none;
+      background: #080d1a;
+      border-top: 1px solid var(--surface-border);
+      padding: 20px 28px;
+      font-size: 0.85rem;
+    }
+  </style>
 </head>
-
 <body>
 
-    <!-- Auth view: choose login or create account -->
-    <div id="authView" class="card">
-        <h1>Welcome</h1>
-
-        <div class="tabs">
-            <button class="tab active" data-mode="login">Login</button>
-            <button class="tab" data-mode="signup">Create Account</button>
-        </div>
-
-        <form id="authForm">
-            <input type="email" id="email" name="email" placeholder="Email" required>
-            <input type="password" id="password" name="password" placeholder="Password" required>
-            <button type="submit" id="submitBtn">Login</button>
-        </form>
-
-        <p id="message"></p>
+  <!-- Top Navigation Header -->
+  <header>
+    <div class="brand" onclick="switchView('eventsView')">
+      <div class="brand-icon">⚡</div>
+      <div>
+        <div class="brand-text">HackHub</div>
+      </div>
+      <span class="brand-tag">2026 Portal</span>
     </div>
 
-    <!-- Dashboard view: empty for now -->
-    <div id="dashboardView" class="dashboard" style="display: none;">
-        <div class="navbar">
-            <h1>Dashboard</h1>
-            <button class="logout-btn" id="logoutBtn">Logout</button>
-        </div>
-
-        <div class="dashboard-empty">
-            <p>Welcome! Your dashboard is empty for now.</p>
-        </div>
+    <!-- Navigation Links -->
+    <div class="nav-links">
+      <button class="nav-btn active" id="navEventsBtn" onclick="switchView('eventsView')">
+        <span>🚀</span> Hackathons
+      </button>
+      <button class="nav-btn" id="navInvitationsBtn" onclick="switchView('invitationsView')">
+        <span>📬</span> My Invitations <span id="invitationBadge" style="display:none; background: #3b82f6; color:#fff; border-radius: 99px; padding: 2px 6px; font-size: 0.7rem;">0</span>
+      </button>
+      <button class="nav-btn" id="navAdminBtn" style="display:none;" onclick="switchView('adminView')">
+        <span>🛡️</span> Administration
+      </button>
     </div>
 
-    <script>
-        const API_URL = "http://localhost:6969";
+    <!-- User Authentication & Action Menu -->
+    <div class="user-actions">
+      <!-- Role Badge -->
+      <div id="userRoleBadge" class="role-badge role-guest">
+        <span>👤</span> Stranger (Visitor)
+      </div>
 
-        const authView = document.getElementById("authView");
-        const dashboardView = document.getElementById("dashboardView");
-        const authForm = document.getElementById("authForm");
-        const emailInput = document.getElementById("email");
-        const passwordInput = document.getElementById("password");
-        const submitBtn = document.getElementById("submitBtn");
-        const message = document.getElementById("message");
-        const tabs = document.querySelectorAll(".tab");
+      <!-- Auth Action Button -->
+      <button id="authModalBtn" class="btn btn-primary btn-sm" onclick="openAuthModal('login')">
+        <span>🔐</span> Sign In / Register
+      </button>
+      
+      <!-- Claim Owner (When user is logged in but not yet owner) -->
+      <button id="claimOwnerHeaderBtn" class="btn btn-owner btn-sm" style="display:none;" onclick="openClaimOwnerModal()">
+        <span>👑</span> Claim Owner
+      </button>
+      
+      <button id="signOutBtn" class="btn btn-outline btn-sm" style="display:none;" onclick="handleSignOut()">Sign Out</button>
+    </div>
+  </header>
 
-        let mode = "login";
+  <!-- MAIN APP CONTAINER -->
+  <div class="main-container">
 
-        // Switch between login and create-account modes
-        tabs.forEach((tab) => {
-            tab.addEventListener("click", () => {
-                mode = tab.dataset.mode;
-                tabs.forEach((t) => t.classList.toggle("active", t === tab));
-                submitBtn.textContent = mode === "login" ? "Login" : "Create Account";
-                message.textContent = "";
-                message.className = "";
-            });
-        });
+    <!-- VIEW 1: HACKATHONS EXPLORATION (Publicly accessible to Strangers & Users) -->
+    <div id="eventsView" class="app-view">
+      <!-- Hero Header -->
+      <div class="hero-banner">
+        <h1>Discover Hackathons & Build</h1>
+        <p>Explore real-time hackathon competitions, join tracks, assemble teams, and ship extraordinary projects.</p>
+      </div>
 
-        // On load, go straight to dashboard if a token already exists
-        if (localStorage.getItem("access_token")) {
-            showDashboard();
+      <!-- Filters & Actions -->
+      <div class="section-header">
+        <div class="section-title">
+          <span>Active Hackathons</span>
+          <span id="eventsCountBadge" class="status-badge status-open">0 Events</span>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+          <input type="text" id="eventSearchInput" placeholder="Search hackathon by name..." style="max-width: 260px;" oninput="filterEventCards()">
+          <select id="eventStatusFilter" style="max-width: 140px;" onchange="filterEventCards()">
+            <option value="">All Statuses</option>
+            <option value="open">Open</option>
+            <option value="closed">Closed</option>
+            <option value="upcoming">Upcoming</option>
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="loadAllEvents()">↻ Refresh</button>
+        </div>
+      </div>
+
+      <!-- Hackathons Grid -->
+      <div id="eventsGridContainer" class="events-grid">
+        <div style="color: var(--text-muted); padding: 40px 0; text-align: center; grid-column: 1/-1;">
+          Loading hackathon events...
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 2: MY JUDGE INVITATIONS -->
+    <div id="invitationsView" class="app-view" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">
+          <span>📬 My Judge Invitations</span>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadUserInvitations()">↻ Refresh</button>
+      </div>
+
+      <div id="invitationsListContainer" style="display: flex; flex-direction: column; gap: 14px;">
+        <!-- Populated via loadUserInvitations() -->
+      </div>
+    </div>
+
+    <!-- VIEW 3: ADMINISTRATION (All Non-User Accounts: Owner, Organiser, Judge) -->
+    <div id="adminView" class="app-view" style="display:none;">
+      <div class="section-header">
+        <div class="section-title">
+          <span>🛡️ Administration</span>
+          <span class="role-badge role-owner" id="adminRoleDisplay">Admin Access</span>
+        </div>
+        <button class="btn btn-outline btn-sm" id="adminRefreshBtn" onclick="refreshCurrentAdminTab()">↻ Refresh</button>
+      </div>
+
+      <!-- Admin Tabs: Conditionally displayed per role -->
+      <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+        <!-- Owner Only -->
+        <button class="btn btn-primary btn-sm" id="adminTabUsersBtn" onclick="toggleAdminSubTab('users')">👥 Master User Directory</button>
+        
+        <!-- Owner & Organiser -->
+        <button class="btn btn-outline btn-sm" id="adminTabManageEventsBtn" onclick="toggleAdminSubTab('events')">📋 Modify & Manage Events</button>
+        <button class="btn btn-outline btn-sm" id="adminTabCreateBtn" onclick="toggleAdminSubTab('create')">➕ Create New Event</button>
+
+        <!-- Judge Only -->
+        <button class="btn btn-primary btn-sm" id="adminTabJudgeBtn" style="display:none;" onclick="toggleAdminSubTab('judge')">⚖️ Assigned Events</button>
+      </div>
+
+      <!-- Subtab 1: Master User Directory (Owner Only) -->
+      <div id="adminSubTabUsers">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>User / Name</th>
+                <th>Email Address</th>
+                <th>Platform Role</th>
+                <th>Account ID</th>
+                <th style="text-align: right;">Owner Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminUsersTableBody">
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">Loading platform directory...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Subtab 2: Modify & Manage Events (Owner & Organiser) -->
+      <div id="adminSubTabEvents" style="display: none;">
+        <div id="adminEventsListContainer" style="display: flex; flex-direction: column; gap: 16px;">
+          <!-- Populated dynamically via loadAdminManageEvents() -->
+        </div>
+      </div>
+
+      <!-- Subtab 3: Create Event Form (Owner & Organiser) -->
+      <div id="adminSubTabCreate" style="display: none;">
+        <div class="modal-card" style="max-width: 640px; margin: 0 auto;">
+          <h2>Create New Hackathon Event</h2>
+          <p style="font-size: 0.88rem; color: var(--text-muted);">Configure submissions window, competition tracks, and hard deadlines.</p>
+
+          <form onsubmit="handleAdminCreateEvent(event)" style="display: flex; flex-direction: column; gap: 14px;">
+            <div class="form-group">
+              <label>Event Identifier (e.g. evt_spring2026)</label>
+              <input type="text" id="adminCreateId" placeholder="evt_hackathon_2026" required>
+            </div>
+            <div class="form-group">
+              <label>Event Name</label>
+              <input type="text" id="adminCreateName" placeholder="Global AI & Agents Sprint" required>
+            </div>
+            <div class="form-group">
+              <label>Description</label>
+              <textarea id="adminCreateDesc" rows="3" placeholder="72-hour international hacking competition..."></textarea>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="form-group">
+                <label>Submissions Open</label>
+                <input type="datetime-local" id="adminCreateOpen">
+              </div>
+              <div class="form-group">
+                <label>Submissions Close (Hard Deadline)</label>
+                <input type="datetime-local" id="adminCreateClose" required>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top: 10px;">Launch Hackathon Event</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Subtab 4: Judge Administration (Judge Only) -->
+      <div id="adminSubTabJudge" style="display: none;">
+        <div style="background: var(--surface); border: 1px solid var(--surface-border); border-radius: 14px; padding: 56px 28px; text-align: center; max-width: 680px; margin: 0 auto;">
+          <div style="font-size: 3.2rem; margin-bottom: 16px;">⚖️</div>
+          <h2 style="color: #fff; font-size: 1.45rem; margin-bottom: 10px;">Judge Administration</h2>
+          <p style="color: var(--text-muted); font-size: 0.96rem; line-height: 1.6; max-width: 520px; margin: 0 auto 24px auto;">
+            You will be able to see the events you are judges of in the future.
+          </p>
+          <div style="background: rgba(0, 0, 0, 0.25); border: 1px dashed var(--surface-border); border-radius: 10px; padding: 20px; max-width: 480px; margin: 0 auto; color: #94a3b8; font-size: 0.88rem; line-height: 1.5;">
+            No hackathon events currently assigned for judging. When an event organiser invites you to judge a hackathon and you accept, your assigned event submissions, project rubrics, and evaluation tools will appear here.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- EVENT DETAILS MODAL / DRAWER -->
+  <div id="eventDetailsModal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 680px; max-height: 90vh; overflow-y: auto;">
+      <h2>
+        <span id="modalEventTitle">Hackathon Details</span>
+        <button class="btn btn-outline btn-sm" onclick="closeEventModal()">✕</button>
+      </h2>
+
+      <!-- Status & Countdown -->
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <span id="modalEventStatusBadge" class="status-badge status-open">ACTIVE</span>
+        <div class="countdown-chip" style="flex: 1; max-width: 320px;">
+          <div>
+            <div class="countdown-chip-time" id="modalCountdownTime">00:00:00</div>
+            <div class="countdown-chip-label" id="modalCountdownLabel">Remaining</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Description -->
+      <p id="modalEventDesc" style="color: #cbd5e1; line-height: 1.5; font-size: 0.95rem;"></p>
+
+      <!-- Registration / Membership Card -->
+      <div style="background: rgba(0, 0, 0, 0.3); border: 1px solid var(--surface-border); border-radius: 10px; padding: 16px;">
+        <strong style="display: block; margin-bottom: 8px; font-size: 0.95rem;">Your Registration Status:</strong>
+        <div id="modalParticipationStatusArea">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Competition Tracks -->
+      <div>
+        <strong style="display: block; margin-bottom: 10px; font-size: 0.95rem;">Competition Tracks:</strong>
+        <div id="modalTracksContainer" style="display: flex; flex-direction: column; gap: 8px;">
+          <!-- Track items -->
+        </div>
+      </div>
+
+      <!-- Confirmed Judges List -->
+      <div>
+        <strong style="display: block; margin-bottom: 10px; font-size: 0.95rem;">Confirmed Event Judges:</strong>
+        <div id="modalJudgesContainer" style="display: flex; flex-direction: column; gap: 6px;">
+          <!-- Judges items -->
+        </div>
+      </div>
+
+      <!-- Organizer Management Controls (Visible to Organizer or Owner) -->
+      <div id="modalOrganizerPanel" style="display:none; border-top: 1px solid var(--surface-border); padding-top: 18px; margin-top: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <strong style="color: #c4b5fd;">🛠️ Organizer Controls</strong>
+          <span class="role-badge role-organizer">Organizer Privileges</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <!-- Invite Judge -->
+          <div style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--surface-border); border-radius: 8px; padding: 12px;">
+            <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">Invite Participant to Judge:</label>
+            <form onsubmit="handleModalInviteJudge(event)" style="display: flex; gap: 8px;">
+              <input type="text" id="modalInviteInput" placeholder="Participant Email or User ID" required style="flex: 1;">
+              <button type="submit" class="btn btn-primary btn-sm">Send Judge Invite</button>
+            </form>
+          </div>
+
+          <!-- Add Track -->
+          <div style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--surface-border); border-radius: 8px; padding: 12px;">
+            <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">Add Competition Track:</label>
+            <form onsubmit="handleModalAddTrack(event)" style="display: flex; flex-direction: column; gap: 8px;">
+              <input type="text" id="modalTrackName" placeholder="Track Name (e.g. Best Autonomous Agent)" required>
+              <input type="text" id="modalTrackDesc" placeholder="Brief track description...">
+              <button type="submit" class="btn btn-outline btn-sm" style="align-self: flex-start;">+ Add Track</button>
+            </form>
+          </div>
+
+          <!-- Adjust Deadline -->
+          <div style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--surface-border); border-radius: 8px; padding: 12px;">
+            <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 6px;">Adjust Hard Deadline:</label>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+              <button class="btn btn-outline btn-sm" onclick="modalShiftDeadline(3600)">+1 Hour</button>
+              <button class="btn btn-outline btn-sm" onclick="modalShiftDeadline(86400)">+24 Hours</button>
+              <button class="btn btn-outline btn-sm" onclick="modalShiftDeadline(-3600)">-1 Hour</button>
+              <button class="btn btn-danger btn-sm" onclick="modalCloseNow()">Close Submissions Now</button>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <input type="datetime-local" id="modalExactDeadlineInput" style="font-size: 0.85rem;">
+              <button class="btn btn-primary btn-sm" onclick="modalApplyExactDeadline()">Update Deadline</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- AUTHENTICATION MODAL (LOG IN / SIGN UP) -->
+  <div id="authModal" class="modal-overlay">
+    <div class="modal-card">
+      <h2>
+        <span id="authModalTitle">Sign In to HackHub</span>
+        <button class="btn btn-outline btn-sm" onclick="closeAuthModal()">✕</button>
+      </h2>
+
+      <!-- Auth Toggle Tabs -->
+      <div style="display: flex; gap: 8px; background: rgba(0, 0, 0, 0.3); padding: 4px; border-radius: 8px;">
+        <button id="authModalLoginTabBtn" class="btn btn-primary btn-sm" style="flex: 1;" onclick="setAuthModalMode('login')">Log In</button>
+        <button id="authModalSignupTabBtn" class="btn btn-outline btn-sm" style="flex: 1;" onclick="setAuthModalMode('signup')">Create Account</button>
+      </div>
+
+      <form onsubmit="handleAuthSubmit(event)" style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="authEmail" placeholder="you@domain.com" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="authPassword" placeholder="••••••••" required>
+        </div>
+
+        <button type="submit" id="authSubmitBtn" class="btn btn-primary" style="margin-top: 6px;">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- CLAIM OWNER MODAL -->
+  <div id="claimOwnerModal" class="modal-overlay">
+    <div class="modal-card">
+      <h2>
+        <span>👑 Claim Platform Ownership</span>
+        <button class="btn btn-outline btn-sm" onclick="closeClaimOwnerModal()">✕</button>
+      </h2>
+      <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.5;">
+        As the host of this platform, enter the temporary setup key printed in your server startup terminal or saved in <code>.owner_key</code>.
+      </p>
+
+      <form onsubmit="handleClaimOwnerSubmit(event)" style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="form-group">
+          <label>Platform Owner Setup Key</label>
+          <input type="text" id="ownerKeyInput" placeholder="Paste setup key from server logs / .owner_key" required autocomplete="off">
+          <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">
+            💡 The setup key was generated when the backend started. You can check your server terminal output or open <code>.owner_key</code> in the project directory.
+          </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="closeClaimOwnerModal()">Cancel</button>
+          <button type="submit" class="btn btn-owner btn-sm">Verify & Activate Owner</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div>
+      <strong>HackHub Portal 2026</strong> &bull; Self-Hostable Submission & Judging Engine
+    </div>
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <button class="btn btn-outline btn-sm" onclick="toggleDevDrawer()">⚙️ Developer Tools</button>
+    </div>
+  </footer>
+
+  <!-- COLLAPSIBLE DEVELOPER DRAWER (FOR SPEC GRADING CHECKS) -->
+  <div id="devToolsDrawer">
+    <div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div>
+        <strong style="color: #fbbf24;">🧪 Spec Test Fixtures & Role Switcher</strong>
+        <div style="color: var(--text-muted); font-size: 0.8rem;">Switch fixture sessions for DOGFOOD test runner verification.</div>
+      </div>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+        <button class="btn btn-outline btn-sm" onclick="applyTestSession('guest')">Stranger</button>
+        <button class="btn btn-outline btn-sm" onclick="applyTestSession('participant')">Participant (prt_2e88)</button>
+        <button class="btn btn-outline btn-sm" onclick="applyTestSession('judge_a')">Judge A (jdg_a)</button>
+        <button class="btn btn-outline btn-sm" onclick="applyTestSession('judge_b')">Judge B (jdg_b)</button>
+        <button class="btn btn-outline btn-sm" onclick="applyTestSession('organizer')">Organizer (org_7f2a)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="toast"></div>
+
+  <!-- SCRIPT LOGIC -->
+  <script>
+    const API_BASE = window.location.origin.includes("http") && !window.location.origin.includes("file:") 
+      ? window.location.origin 
+      : "http://localhost:8080";
+
+    const TEST_SESSIONS = {
+      organizer: "org_7f2a",
+      judge_a: "jdg_a_91bc",
+      judge_b: "jdg_b_44de",
+      participant: "prt_2e88",
+      guest: ""
+    };
+
+    let currentUser = null;
+    let currentRole = "guest";
+    let allEvents = [];
+    let selectedEvent = null;
+    let countdownInterval = null;
+    let authModalMode = "login";
+
+    // Startup Initialization
+    window.addEventListener("DOMContentLoaded", () => {
+      // Restore authenticated session if exists in localStorage
+      const savedUserStr = localStorage.getItem("active_user");
+      if (savedUserStr) {
+        try {
+          const user = JSON.parse(savedUserStr);
+          setActiveUser(user);
+        } catch (e) {
+          setStrangerState();
+        }
+      } else {
+        setStrangerState();
+      }
+
+      loadAllEvents();
+    });
+
+    // View Switching
+    function switchView(viewId) {
+      document.querySelectorAll(".app-view").forEach(v => v.style.display = "none");
+      document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+      
+      const target = document.getElementById(viewId);
+      if (target) target.style.display = "block";
+
+      if (viewId === "eventsView") {
+        document.getElementById("navEventsBtn").classList.add("active");
+      } else if (viewId === "invitationsView") {
+        document.getElementById("navInvitationsBtn").classList.add("active");
+        loadUserInvitations();
+      } else if (viewId === "adminView") {
+        document.getElementById("navAdminBtn").classList.add("active");
+        setupAdminView();
+      }
+    }
+
+    // Set Stranger (Guest) State
+    function setStrangerState() {
+      currentUser = null;
+      currentRole = "guest";
+      localStorage.removeItem("active_user");
+      document.cookie = "session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
+      const badge = document.getElementById("userRoleBadge");
+      badge.className = "role-badge role-guest";
+      badge.innerHTML = "<span>👤</span> Stranger (Visitor)";
+
+      const authBtn = document.getElementById("authModalBtn");
+      if (authBtn) authBtn.style.display = "inline-flex";
+      document.getElementById("claimOwnerHeaderBtn").style.display = "none";
+      document.getElementById("signOutBtn").style.display = "none";
+      document.getElementById("navAdminBtn").style.display = "none";
+      const invBadge = document.getElementById("invitationBadge");
+      if (invBadge) invBadge.style.display = "none";
+    }
+
+    // Set Authenticated User State
+    function setActiveUser(user) {
+      currentUser = user;
+      currentRole = user.role || "user";
+      localStorage.setItem("active_user", JSON.stringify(user));
+
+      const badge = document.getElementById("userRoleBadge");
+      badge.className = "role-badge";
+
+      const displayName = user.name || (user.email ? user.email.split('@')[0] : 'User');
+
+      if (user.role === "owner") {
+        badge.classList.add("role-owner");
+        badge.innerHTML = `<span>👑</span> Owner (${displayName})`;
+        document.getElementById("claimOwnerHeaderBtn").style.display = "none";
+      } else if (user.role === "organizer") {
+        badge.classList.add("role-organizer");
+        badge.innerHTML = `<span>🛠️</span> Organiser (${displayName})`;
+        document.getElementById("claimOwnerHeaderBtn").style.display = "none";
+      } else if (user.role === "judge") {
+        badge.classList.add("role-judge");
+        badge.innerHTML = `<span>⚖️</span> Judge (${displayName})`;
+        document.getElementById("claimOwnerHeaderBtn").style.display = "none";
+      } else {
+        badge.classList.add("role-user");
+        badge.innerHTML = `<span>👤</span> User (${displayName})`;
+        document.getElementById("claimOwnerHeaderBtn").style.display = "inline-flex";
+      }
+
+      // All non-user accounts (owner, organiser, judge) have an administration page
+      const isNonUser = user.role === "owner" || user.role === "organizer" || user.role === "judge";
+      document.getElementById("navAdminBtn").style.display = isNonUser ? "inline-flex" : "none";
+
+      const authBtn = document.getElementById("authModalBtn");
+      if (authBtn) authBtn.style.display = "none";
+      document.getElementById("signOutBtn").style.display = "inline-flex";
+
+      const token = user.token || user.session_token || `usr_${user.user_id || 'tok'}`;
+      if (token) {
+        document.cookie = `session=${token}; path=/; SameSite=Lax`;
+      }
+
+      // Check for pending invitations
+      checkPendingInvitationsBadge();
+    }
+
+    function handleSignOut() {
+      setStrangerState();
+      switchView("eventsView");
+      showToast("Signed out. You are now exploring as a stranger.", "info");
+    }
+
+    function getAuthHeaders() {
+      const headers = { "Content-Type": "application/json" };
+      let token = "";
+      if (currentUser && (currentUser.token || currentUser.session_token)) {
+        token = currentUser.token || currentUser.session_token;
+      } else if (TEST_SESSIONS[currentRole]) {
+        token = TEST_SESSIONS[currentRole];
+      }
+      if (token && currentRole !== "guest") {
+        headers["Authorization"] = `Bearer ${token}`;
+        headers["X-Session-Token"] = token;
+      }
+      return headers;
+    }
+
+    // Load Events from API
+    async function loadAllEvents() {
+      try {
+        const res = await fetch(`${API_BASE}/api/events`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        allEvents = data.items || [];
+        renderEventCards(allEvents);
+        document.getElementById("eventsCountBadge").textContent = `${allEvents.length} Events`;
+      } catch (err) {
+        document.getElementById("eventsGridContainer").innerHTML = `
+          <div style="color: var(--danger); padding: 40px 0; text-align: center; grid-column: 1/-1;">
+            Failed to connect to backend: ${err.message}
+          </div>
+        `;
+      }
+    }
+
+    function filterEventCards() {
+      const query = document.getElementById("eventSearchInput").value.toLowerCase();
+      const statusFilter = document.getElementById("eventStatusFilter").value;
+      const filtered = allEvents.filter(e => {
+        const matchesQuery = e.name.toLowerCase().includes(query) || (e.description || '').toLowerCase().includes(query);
+        const matchesStatus = !statusFilter || e.status === statusFilter;
+        return matchesQuery && matchesStatus;
+      });
+      renderEventCards(filtered);
+    }
+
+    function renderEventCards(events) {
+      const container = document.getElementById("eventsGridContainer");
+      if (events.length === 0) {
+        container.innerHTML = `
+          <div style="color: var(--text-muted); padding: 40px 0; text-align: center; grid-column: 1/-1;">
+            No hackathon events match your criteria.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = events.map(e => `
+        <div class="event-card" onclick="openEventDetails('${e.id}')">
+          <div>
+            <div class="event-card-header">
+              <div class="event-card-title">${e.name}</div>
+              <span class="status-badge status-${e.status}">${e.status}</span>
+            </div>
+            <p class="event-card-desc" style="margin-top: 8px;">${e.description || 'No description provided.'}</p>
+          </div>
+
+          <div>
+            <div class="countdown-chip" style="margin-bottom: 12px;">
+              <div>
+                <div class="countdown-chip-time">${formatCountdownShort(e.time_remaining_seconds, e.status)}</div>
+                <div class="countdown-chip-label">${e.status === 'open' ? 'Submissions Open' : e.status === 'closed' ? 'Submissions Closed' : 'Starts Soon'}</div>
+              </div>
+              <span style="font-size: 0.8rem; color: var(--text-muted);">${e.track_count || 0} Tracks</span>
+            </div>
+
+            <div class="track-pills">
+              ${(e.tracks || []).slice(0, 3).map(t => `<span class="track-pill">${t.name}</span>`).join('')}
+              ${(e.tracks || []).length > 3 ? `<span class="track-pill">+${e.tracks.length - 3} more</span>` : ''}
+            </div>
+          </div>
+
+          <div style="border-top: 1px solid var(--surface-border); padding-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.8rem; color: var(--text-muted);">ID: <code>${e.id}</code></span>
+            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); openEventDetails('${e.id}')">View Details &rarr;</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function formatCountdownShort(seconds, status) {
+      if (status === 'closed' || seconds <= 0) return "Closed";
+      const d = Math.floor(seconds / 86400);
+      const h = Math.floor((seconds % 86400) / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      if (d > 0) return `${d}d ${h}h left`;
+      return `${h}h ${m}m left`;
+    }
+
+    // Event Details Modal
+    async function openEventDetails(eventId) {
+      try {
+        const res = await fetch(`${API_BASE}/api/events/${eventId}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        selectedEvent = await res.json();
+
+        document.getElementById("modalEventTitle").textContent = selectedEvent.name;
+        document.getElementById("modalEventDesc").textContent = selectedEvent.description || "No description provided.";
+        
+        const badge = document.getElementById("modalEventStatusBadge");
+        badge.className = `status-badge status-${selectedEvent.status}`;
+        badge.textContent = selectedEvent.status.toUpperCase();
+
+        // Tracks
+        const tracksContainer = document.getElementById("modalTracksContainer");
+        if (selectedEvent.tracks && selectedEvent.tracks.length > 0) {
+          tracksContainer.innerHTML = selectedEvent.tracks.map(t => `
+            <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--surface-border); border-radius: 8px; padding: 10px;">
+              <strong style="color: #fff; font-size: 0.9rem;">${t.name}</strong>
+              <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 3px;">${t.description || 'Competition track.'}</div>
+            </div>
+          `).join('');
+        } else {
+          tracksContainer.innerHTML = `<span style="font-size: 0.85rem; color: var(--text-muted);">No tracks configured for this hackathon.</span>`;
         }
 
-        authForm.addEventListener("submit", async (event) => {
-            event.preventDefault();
-
-            const email = emailInput.value;
-            const password = passwordInput.value;
-            const endpoint = mode === "login" ? "/login" : "/create_account";
-
-            message.textContent = "Please wait...";
-            message.className = "";
-
-            try {
-                const response = await fetch(API_URL + endpoint, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ username: email, password })
-                });
-
-                const data = await response.json();
-
-                if (response.ok && !data.error) {
-                    if (data.access_token) {
-                        localStorage.setItem("access_token", data.access_token);
-                        localStorage.setItem("user_id", data.user_id);
-                    }
-                    message.textContent = mode === "login" ? "Login successful" : "Account created";
-                    message.className = "success";
-                    showDashboard();
-                } else {
-                    message.textContent = data.error || data.detail || "Request failed";
-                    message.className = "error";
-                }
-            } catch (error) {
-                message.textContent = "Could not connect to server";
-                message.className = "error";
-                console.error(error);
-            }
-        });
-
-        document.getElementById("logoutBtn").addEventListener("click", async() => {
-            localStorage.removeItem("access_token");
-            localStorage.removeItem("user_id");
-            authView.style.display = "";
-            dashboardView.style.display = "none";
-            authForm.reset();
-
-            const endpoint='/logout';
-
-            try {
-                const response = await fetch(API_URL + endpoint, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: null
-                });
-
-                const data = await response.json();
-
-            } catch (error) {
-                message.textContent = "Could not connect to server";
-                message.className = "error";
-                console.error(error);
-            }
-
-
-        });
-
-        function showDashboard() {
-            authView.style.display = "none";
-            dashboardView.style.display = "";
+        // Exact deadline input
+        if (selectedEvent.submissions_close) {
+          const closeDate = new Date(selectedEvent.submissions_close);
+          document.getElementById("modalExactDeadlineInput").value = toLocalISO(closeDate);
         }
-    </script>
 
+        // Live Countdown
+        startModalCountdown(selectedEvent.submissions_close, selectedEvent.is_submission_open);
+
+        // Participation & Judges
+        await renderModalParticipation();
+        await loadModalJudges();
+
+        // Organizer panel visibility
+        const isOrgOrOwner = (currentUser && (currentUser.role === 'owner' || currentUser.role === 'organizer')) || 
+                             (currentRole === 'organizer' || currentRole === 'owner');
+        document.getElementById("modalOrganizerPanel").style.display = isOrgOrOwner ? "block" : "none";
+
+        document.getElementById("eventDetailsModal").classList.add("open");
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    function closeEventModal() {
+      document.getElementById("eventDetailsModal").classList.remove("open");
+      if (countdownInterval) clearInterval(countdownInterval);
+    }
+
+    function startModalCountdown(deadlineStr, isOpen) {
+      if (countdownInterval) clearInterval(countdownInterval);
+      const deadline = new Date(deadlineStr).getTime();
+
+      const update = () => {
+        const now = Date.now();
+        const diff = Math.max(0, Math.floor((deadline - now) / 1000));
+
+        if (diff <= 0) {
+          document.getElementById("modalCountdownTime").textContent = "00:00:00";
+          document.getElementById("modalCountdownLabel").textContent = "Submissions Closed";
+          document.getElementById("modalCountdownTime").style.color = "#ef4444";
+          return;
+        }
+
+        const hrs = String(Math.floor(diff / 3600)).padStart(2, '0');
+        const mins = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+        const secs = String(diff % 60).padStart(2, '0');
+
+        document.getElementById("modalCountdownTime").textContent = `${hrs}:${mins}:${secs}`;
+        document.getElementById("modalCountdownLabel").textContent = "Until Hard Deadline";
+        document.getElementById("modalCountdownTime").style.color = "#60a5fa";
+      };
+
+      update();
+      countdownInterval = setInterval(update, 1000);
+    }
+
+    async function renderModalParticipation() {
+      const container = document.getElementById("modalParticipationStatusArea");
+      if (!container || !selectedEvent) return;
+
+      if (currentRole === "guest" || !currentUser) {
+        container.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <span style="font-size: 0.88rem; color: var(--text-muted);">You are viewing as a guest. Log in to register for this event.</span>
+            <button class="btn btn-primary btn-sm" onclick="closeEventModal(); openAuthModal('login')">Sign In to Register</button>
+          </div>
+        `;
+        return;
+      }
+
+      // Check if current user is member
+      try {
+        const res = await fetch(`${API_BASE}/api/events/${selectedEvent.id}/members`);
+        const members = res.ok ? await res.json() : [];
+        const myMem = members.find(m => m.user_id === currentUser.user_id || m.user_email === currentUser.email);
+
+        if (myMem) {
+          if (myMem.role === "judge") {
+            container.innerHTML = `
+              <div style="color: #60a5fa; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
+                <span>⚖️</span> You are a confirmed official Judge for this event!
+              </div>
+            `;
+          } else {
+            container.innerHTML = `
+              <div style="color: #34d399; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
+                <span>✅</span> You are registered as a Participant in this hackathon!
+              </div>
+            `;
+          }
+        } else {
+          container.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <span style="font-size: 0.88rem; color: #cbd5e1;">You are not yet registered for this competition.</span>
+              <button class="btn btn-primary btn-sm" onclick="handleJoinEventModal()">🚀 Register as Participant</button>
+            </div>
+          `;
+        }
+      } catch (e) {
+        container.innerHTML = `<button class="btn btn-primary btn-sm" onclick="handleJoinEventModal()">🚀 Register as Participant</button>`;
+      }
+    }
+
+    async function handleJoinEventModal() {
+      if (!selectedEvent) return;
+      if (currentRole === "guest" || !currentUser) {
+        showToast("Please log in first to join!", "error");
+        closeEventModal();
+        openAuthModal('login');
+        return;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/api/events/${selectedEvent.id}/join`, {
+          method: "POST",
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        showToast(`Successfully registered for ${selectedEvent.name}!`, "success");
+        await renderModalParticipation();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    async function loadModalJudges() {
+      const container = document.getElementById("modalJudgesContainer");
+      if (!container || !selectedEvent) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/events/${selectedEvent.id}/judges`);
+        const judges = res.ok ? await res.json() : [];
+        if (!judges || judges.length === 0) {
+          container.innerHTML = `<span style="font-size: 0.85rem; color: var(--text-muted);">No judges confirmed yet.</span>`;
+          return;
+        }
+        container.innerHTML = judges.map(j => `
+          <div style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--surface-border); border-radius: 6px; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.88rem; font-weight: 600; color: #fff;">⚖️ ${j.user_name || j.user_email || j.user_id}</span>
+            <span class="role-badge role-judge">Confirmed Judge</span>
+          </div>
+        `).join('');
+      } catch (e) {
+        container.innerHTML = `<span style="font-size: 0.85rem; color: var(--danger);">${e.message}</span>`;
+      }
+    }
+
+    // Modal Organizer Controls
+    async function handleModalInviteJudge(e) {
+      e.preventDefault();
+      const val = document.getElementById("modalInviteInput").value.trim();
+      const payload = val.includes("@") ? { email: val } : { user_id: val };
+      try {
+        const res = await fetch(`${API_BASE}/api/events/${selectedEvent.id}/judges/invite`, {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        showToast(`Judge invitation sent to ${data.invitee_email || data.invitee_id}!`, "success");
+        document.getElementById("modalInviteInput").value = "";
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    async function handleModalAddTrack(e) {
+      e.preventDefault();
+      const payload = {
+        name: document.getElementById("modalTrackName").value.trim(),
+        description: document.getElementById("modalTrackDesc").value.trim()
+      };
+      try {
+        const res = await fetch(`${API_BASE}/api/events/${selectedEvent.id}/tracks`, {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        showToast(`Track '${data.name}' added!`, "success");
+        document.getElementById("modalTrackName").value = "";
+        document.getElementById("modalTrackDesc").value = "";
+        await openEventDetails(selectedEvent.id);
+        await loadAllEvents();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    async function modalShiftDeadline(seconds) {
+      if (!selectedEvent) return;
+      const current = new Date(selectedEvent.submissions_close).getTime();
+      const now = Date.now();
+      const base = seconds > 0 ? Math.max(now, current) : current;
+      const target = base + seconds * 1000;
+      const newClose = new Date(target).toISOString();
+      await executeModalDeadlineUpdate(newClose);
+    }
+
+    async function modalCloseNow() {
+      if (!selectedEvent) return;
+      const past = new Date(Date.now() - 60000).toISOString();
+      await executeModalDeadlineUpdate(past);
+    }
+
+    async function modalApplyExactDeadline() {
+      const val = document.getElementById("modalExactDeadlineInput").value;
+      if (!val) return showToast("Select a date and time", "error");
+      const iso = new Date(val).toISOString();
+      await executeModalDeadlineUpdate(iso);
+    }
+
+    async function executeModalDeadlineUpdate(newClose) {
+      try {
+        const res = await fetch(`${API_BASE}/api/events/${selectedEvent.id}/deadline`, {
+          method: "PATCH",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ submissions_close: newClose })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        showToast("Deadline updated successfully!", "success");
+        await openEventDetails(selectedEvent.id);
+        await loadAllEvents();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    // AUTH MODAL LOGIC
+    function openAuthModal(mode) {
+      setAuthModalMode(mode);
+      document.getElementById("authModal").classList.add("open");
+    }
+
+    function closeAuthModal() {
+      document.getElementById("authModal").classList.remove("open");
+    }
+
+    function setAuthModalMode(mode) {
+      authModalMode = mode;
+      document.getElementById("authModalTitle").textContent = mode === "login" ? "Sign In to HackHub" : "Create HackHub Account";
+      document.getElementById("authSubmitBtn").textContent = mode === "login" ? "Sign In" : "Register Account";
+      document.getElementById("authModalLoginTabBtn").className = mode === "login" ? "btn btn-primary btn-sm" : "btn btn-outline btn-sm";
+      document.getElementById("authModalSignupTabBtn").className = mode === "signup" ? "btn btn-primary btn-sm" : "btn btn-outline btn-sm";
+    }
+
+    async function handleAuthSubmit(e) {
+      e.preventDefault();
+      const email = document.getElementById("authEmail").value.trim();
+      const password = document.getElementById("authPassword").value.trim();
+      const endpoint = authModalMode === "login" ? "/login" : "/create_account";
+
+      try {
+        const res = await fetch(`${API_BASE}${endpoint}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: email, password, role: "user" })
+        });
+        const data = await res.json();
+
+        if (res.ok && !data.error) {
+          const token = data.access_token || data.session_token || `usr_${data.user_id || 'tok'}`;
+          const userObj = {
+            email: data.email || email,
+            user_id: data.user_id,
+            role: data.role || "user",
+            token: token,
+            session_token: data.session_token || token
+          };
+          setActiveUser(userObj);
+          closeAuthModal();
+          showToast(`Welcome, ${userObj.email}! Signed in as ${userObj.role}.`, "success");
+        } else {
+          showToast(data.error || "Authentication failed. Check credentials and try again.", "error");
+        }
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    // CLAIM OWNER MODAL LOGIC
+    function openClaimOwnerModal() {
+      if (currentRole === "guest" || !currentUser) {
+        showToast("Please sign in or register before claiming platform ownership!", "error");
+        openAuthModal('login');
+        return;
+      }
+      document.getElementById("ownerKeyInput").value = "";
+      document.getElementById("claimOwnerModal").classList.add("open");
+    }
+
+    function closeClaimOwnerModal() {
+      document.getElementById("claimOwnerModal").classList.remove("open");
+    }
+
+    async function handleClaimOwnerSubmit(e) {
+      e.preventDefault();
+      const setup_key = document.getElementById("ownerKeyInput").value.trim();
+      if (!setup_key) {
+        showToast("Please enter the owner setup key", "error");
+        return;
+      }
+      if (currentRole === "guest" || !currentUser) {
+        showToast("Please sign in or register before claiming platform ownership!", "error");
+        closeClaimOwnerModal();
+        openAuthModal('login');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/platform/claim-owner`, {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ setup_key })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          if (res.status === 401) {
+            throw new Error("Your session is invalid or expired. Please sign in again.");
+          }
+          throw new Error(data.detail || `HTTP ${res.status}`);
+        }
+
+        showToast("🎉 Platform Ownership Verified! You are now the Platform Owner.", "success");
+        closeClaimOwnerModal();
+
+        if (currentUser) {
+          currentUser.role = "owner";
+          setActiveUser(currentUser);
+        }
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    // INVITATIONS VIEW
+    async function loadUserInvitations() {
+      const container = document.getElementById("invitationsListContainer");
+      if (currentRole === "guest" || !currentUser) {
+        container.innerHTML = `
+          <div style="background: var(--surface); border: 1px solid var(--surface-border); border-radius: 12px; padding: 40px; text-align: center;">
+            <div style="font-size: 2.2rem; margin-bottom: 12px;">📬</div>
+            <h3 style="color: #fff; margin-bottom: 8px;">Sign In to View Invitations</h3>
+            <p style="color: var(--text-muted); margin-bottom: 20px; max-width: 480px; margin-left: auto; margin-right: auto;">
+              Organizers invite registered platform users to judge specific hackathons. Sign in or create an account to view and manage your judging invitations.
+            </p>
+            <button class="btn btn-primary btn-sm" onclick="openAuthModal('login')">🔐 Sign In / Register</button>
+          </div>
+        `;
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/invitations/my`, {
+          headers: getAuthHeaders()
+        });
+        if (res.status === 401) {
+          container.innerHTML = `
+            <div style="background: var(--surface); border: 1px solid var(--surface-border); border-radius: 12px; padding: 32px; text-align: center;">
+              <p style="color: var(--text-muted); margin-bottom: 14px;">Your session is no longer active. Please sign in again to access invitations.</p>
+              <button class="btn btn-primary btn-sm" onclick="openAuthModal('login')">🔐 Sign In Again</button>
+            </div>
+          `;
+          return;
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const invs = await res.json();
+
+        if (!invs || invs.length === 0) {
+          container.innerHTML = `
+            <div style="background: var(--surface); border: 1px solid var(--surface-border); border-radius: 12px; padding: 40px; text-align: center; color: var(--text-muted);">
+              You have no judge invitations at this time.
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = invs.map(i => `
+          <div style="background: var(--surface); border: 1px solid var(--surface-border); border-radius: 12px; padding: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <div style="font-size: 1.1rem; font-weight: 700; color: #fff;">Judge Invitation: ${i.event_name || i.event_id}</div>
+              <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
+                Invited by: <strong>${i.inviter_name || i.inviter_id}</strong> &bull; Status: <span class="status-badge ${i.status === 'accepted' ? 'status-open' : i.status === 'declined' ? 'status-closed' : 'status-upcoming'}">${i.status}</span>
+              </div>
+            </div>
+
+            ${i.status === 'pending' ? `
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-primary btn-sm" onclick="respondInvitation('${i.id}', true)">Accept & Become Judge</button>
+                <button class="btn btn-outline btn-sm" onclick="respondInvitation('${i.id}', false)">Decline</button>
+              </div>
+            ` : `
+              <span class="status-badge ${i.status === 'accepted' ? 'status-open' : 'status-closed'}">${i.status.toUpperCase()}</span>
+            `}
+          </div>
+        `).join('');
+      } catch (err) {
+        container.innerHTML = `<div style="color: var(--text-muted); padding: 24px; text-align: center;">Could not load invitations: ${err.message}</div>`;
+      }
+    }
+
+    async function respondInvitation(invId, accept) {
+      try {
+        const action = accept ? "accept" : "decline";
+        const res = await fetch(`${API_BASE}/api/invitations/${invId}/${action}`, {
+          method: "POST",
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        showToast(`Invitation ${action}ed!`, accept ? "success" : "info");
+        await loadUserInvitations();
+        await checkPendingInvitationsBadge();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    async function checkPendingInvitationsBadge() {
+      if (currentRole === "guest" || !currentUser) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/invitations/my`, { headers: getAuthHeaders() });
+        if (res.ok) {
+          const invs = await res.json();
+          const pending = (invs || []).filter(i => i.status === "pending").length;
+          const badge = document.getElementById("invitationBadge");
+          if (pending > 0) {
+            badge.textContent = pending;
+            badge.style.display = "inline-block";
+          } else {
+            badge.style.display = "none";
+          }
+        }
+      } catch (e) {}
+    }
+
+    // ADMINISTRATION VIEW CONTROLLERS (Role-Specific)
+    let currentAdminSubTab = "users";
+
+    function setupAdminView() {
+      const role = currentUser ? (currentUser.role || currentRole) : currentRole;
+      const roleDisplay = document.getElementById("adminRoleDisplay");
+
+      const tabUsersBtn = document.getElementById("adminTabUsersBtn");
+      const tabManageEventsBtn = document.getElementById("adminTabManageEventsBtn");
+      const tabCreateBtn = document.getElementById("adminTabCreateBtn");
+      const tabJudgeBtn = document.getElementById("adminTabJudgeBtn");
+
+      if (role === "owner") {
+        roleDisplay.className = "role-badge role-owner";
+        roleDisplay.textContent = "Owner Access";
+        tabUsersBtn.style.display = "inline-flex";
+        tabManageEventsBtn.style.display = "inline-flex";
+        tabCreateBtn.style.display = "inline-flex";
+        tabJudgeBtn.style.display = "none";
+        toggleAdminSubTab("users");
+      } else if (role === "organizer") {
+        roleDisplay.className = "role-badge role-organizer";
+        roleDisplay.textContent = "Organiser Access";
+        tabUsersBtn.style.display = "none"; // Organisers do not see the master user list or promote/demote
+        tabManageEventsBtn.style.display = "inline-flex";
+        tabCreateBtn.style.display = "inline-flex";
+        tabJudgeBtn.style.display = "none";
+        toggleAdminSubTab("events");
+      } else if (role === "judge") {
+        roleDisplay.className = "role-badge role-judge";
+        roleDisplay.textContent = "Judge Access";
+        tabUsersBtn.style.display = "none";
+        tabManageEventsBtn.style.display = "none";
+        tabCreateBtn.style.display = "none";
+        tabJudgeBtn.style.display = "inline-flex";
+        toggleAdminSubTab("judge");
+      } else {
+        // Regular users do not have access to admin panel
+        switchView("eventsView");
+        showToast("Access restricted to platform administrators.", "error");
+      }
+    }
+
+    function toggleAdminSubTab(subTab) {
+      currentAdminSubTab = subTab;
+
+      const tabs = ["users", "events", "create", "judge"];
+      tabs.forEach(t => {
+        const el = document.getElementById(`adminSubTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        if (el) el.style.display = t === subTab ? "block" : "none";
+
+        let btn = null;
+        if (t === "users") btn = document.getElementById("adminTabUsersBtn");
+        else if (t === "events") btn = document.getElementById("adminTabManageEventsBtn");
+        else if (t === "create") btn = document.getElementById("adminTabCreateBtn");
+        else if (t === "judge") btn = document.getElementById("adminTabJudgeBtn");
+
+        if (btn) {
+          btn.className = t === subTab ? "btn btn-primary btn-sm" : "btn btn-outline btn-sm";
+        }
+      });
+
+      if (subTab === "users") {
+        loadAdminDirectory();
+      } else if (subTab === "events") {
+        loadAdminManageEvents();
+      }
+    }
+
+    function refreshCurrentAdminTab() {
+      if (currentAdminSubTab === "users") loadAdminDirectory();
+      else if (currentAdminSubTab === "events") loadAdminManageEvents();
+      else if (currentAdminSubTab === "judge") showToast("Judge queue refreshed.", "info");
+      else showToast("Refreshed.", "info");
+    }
+
+    // Owner Only: Master User Directory
+    async function loadAdminDirectory() {
+      const tbody = document.getElementById("adminUsersTableBody");
+      try {
+        const res = await fetch(`${API_BASE}/api/platform/users`, { headers: getAuthHeaders() });
+        if (res.status === 401 || res.status === 403) {
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger); padding: 30px;">Access Forbidden: Owner role required for master directory.</td></tr>`;
+          return;
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const users = await res.json();
+
+        if (!users || users.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">No registered accounts found.</td></tr>`;
+          return;
+        }
+
+        const isOwner = (currentUser && currentUser.role === 'owner') || currentRole === 'owner';
+
+        tbody.innerHTML = users.map(u => `
+          <tr>
+            <td><strong>${u.name || u.email.split('@')[0]}</strong></td>
+            <td><code>${u.email}</code></td>
+            <td>
+              <span class="role-badge ${u.role === 'owner' ? 'role-owner' : u.role === 'organizer' ? 'role-organizer' : u.role === 'judge' ? 'role-judge' : 'role-user'}">
+                ${u.role === 'organizer' ? 'organiser' : u.role}
+              </span>
+            </td>
+            <td><code style="font-size: 0.78rem; color: var(--text-muted);">${u.id}</code></td>
+            <td style="text-align: right;">
+              ${isOwner && (u.role === 'user' || u.role === 'participant') ? `
+                <button class="btn btn-primary btn-sm" onclick="promoteToOrganizer('${u.id}')">⬆️ Promote to Organiser</button>
+              ` : ''}
+              ${isOwner && u.role === 'organizer' ? `
+                <button class="btn btn-danger btn-sm" onclick="demoteToUser('${u.id}')">⬇️ Demote to User</button>
+              ` : ''}
+              ${u.role === 'owner' ? `
+                <span style="color: #fbbf24; font-size: 0.8rem; font-weight: 700;">👑 Platform Owner</span>
+              ` : ''}
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger); padding: 30px;">${err.message}</td></tr>`;
+      }
+    }
+
+    async function promoteToOrganizer(userId) {
+      try {
+        const res = await fetch(`${API_BASE}/api/platform/promote-organizer`, {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ user_id: userId })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        showToast(`Promoted ${data.email} to Organiser!`, "success");
+        await loadAdminDirectory();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    async function demoteToUser(userId) {
+      try {
+        const res = await fetch(`${API_BASE}/api/platform/demote-organizer`, {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ user_id: userId })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        showToast(`Demoted ${data.email} to User.`, "info");
+        await loadAdminDirectory();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    // Owner & Organiser: Modify & Manage Events List
+    async function loadAdminManageEvents() {
+      const container = document.getElementById("adminEventsListContainer");
+      if (!container) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/events`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const events = data.items || [];
+
+        if (events.length === 0) {
+          container.innerHTML = `
+            <div style="background: var(--surface); border: 1px solid var(--surface-border); border-radius: 12px; padding: 40px; text-align: center; color: var(--text-muted);">
+              No hackathon events created yet. Use the "Create New Event" tab to launch one!
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = events.map(e => `
+          <div style="background: var(--surface); border: 1px solid var(--surface-border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <strong style="color: #fff; font-size: 1.15rem;">${e.name}</strong>
+                  <span class="status-badge status-${e.status}">${e.status}</span>
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
+                  ID: <code>${e.id}</code> &bull; Tracks: <strong>${e.track_count || (e.tracks || []).length}</strong> &bull; Deadline: <strong>${e.submissions_close ? new Date(e.submissions_close).toLocaleString() : 'Not set'}</strong>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn btn-primary btn-sm" onclick="openEventDetails('${e.id}')">⚙️ Manage & Adjust Deadline</button>
+              </div>
+            </div>
+            
+            <p style="font-size: 0.88rem; color: #cbd5e1; margin: 0; line-height: 1.5;">${e.description || 'No description provided.'}</p>
+          </div>
+        `).join('');
+      } catch (err) {
+        container.innerHTML = `<div style="color: var(--danger); padding: 20px;">Failed to load events: ${err.message}</div>`;
+      }
+    }
+
+    async function handleAdminCreateEvent(e) {
+      e.preventDefault();
+      const payload = {
+        id: document.getElementById("adminCreateId").value.trim(),
+        name: document.getElementById("adminCreateName").value.trim(),
+        description: document.getElementById("adminCreateDesc").value.trim(),
+        submissions_open: new Date(document.getElementById("adminCreateOpen").value || Date.now()).toISOString(),
+        submissions_close: new Date(document.getElementById("adminCreateClose").value).toISOString()
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/api/events`, {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        showToast(`Event '${data.name}' launched!`, "success");
+        toggleAdminSubTab('events');
+        await loadAllEvents();
+        switchView('eventsView');
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    // DEV DRAWER CONTROLS
+    function toggleDevDrawer() {
+      const drawer = document.getElementById("devToolsDrawer");
+      drawer.style.display = drawer.style.display === "block" ? "none" : "block";
+    }
+
+    function applyTestSession(role) {
+      currentRole = role;
+      const token = TEST_SESSIONS[role];
+      if (token) {
+        document.cookie = `session=${token}; path=/; SameSite=Lax`;
+        currentUser = {
+          email: `${role}@test.fixture`,
+          role: role.startsWith('judge') ? 'judge' : role,
+          user_id: `usr_${role}`,
+          token
+        };
+        setActiveUser(currentUser);
+      } else {
+        setStrangerState();
+      }
+      showToast(`Dev role switched to: ${role}`, "info");
+    }
+
+    // Helpers
+    function toLocalISO(d) {
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function showToast(msg, type = "info") {
+      const toast = document.getElementById("toast");
+      toast.className = `toast toast-${type} show`;
+      toast.textContent = msg;
+      setTimeout(() => toast.classList.remove("show"), 3500);
+    }
+  </script>
 </body>
-
 </html>

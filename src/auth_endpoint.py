@@ -1,11 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import src.auth as auth
+from typing import Optional
 from pydantic import BaseModel
 
 class AuthDetails(BaseModel):
-    username:str
-    password:str
+    username: str
+    password: str
+    role: Optional[str] = "participant"
     
 # class SessionId(BaseModel):
 #     session_id:str
@@ -28,7 +30,7 @@ app.add_middleware(
 @app.post('/create_account')
 def create_account(details: AuthDetails):
     # print(details)
-    return auth.create_account(details.username,details.password)
+    return auth.create_account(details.username, details.password, details.role)
     
     
 @app.post('/login')
@@ -44,4 +46,11 @@ def logout():
 def get_current_user():
     return auth.get_current_user()
 
-    
+
+# Mount Events router
+from src.routers import events_router
+from src.database import init_db
+
+init_db()
+app.include_router(events_router, prefix="/api")
+app.include_router(events_router)
