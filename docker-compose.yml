@@ -580,6 +580,27 @@ services:
         "/app/bin/migrate && /app/bin/supavisor eval \"$$(cat /etc/pooler/pooler.exs)\" && /app/bin/server"
       ]
 
+# DogFood Hackathon Portal - FastAPI app (uvicorn src.main:app)
+  portal:
+    container_name: supabase-portal
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - ${PORTAL_PORT:-8080}:8080
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8080
+    volumes:
+      - ./src:/app/src:z
+      - ./tests:/app/tests:z
+      - ./volumes/portal:/app/data:z
+    command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+
 volumes:
   db-config:
   deno-cache:
