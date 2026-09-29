@@ -529,17 +529,18 @@
 
       <!-- Subtab 4: Judge Administration (Judge Only) -->
       <div id="adminSubTabJudge" style="display: none;">
-        <div style="background: var(--surface); border: 1px solid var(--surface-border); border-radius: 14px; padding: 56px 28px; text-align: center; max-width: 680px; margin: 0 auto;">
-          <div style="font-size: 3.2rem; margin-bottom: 16px;">⚖️</div>
-          <h2 style="color: #fff; font-size: 1.45rem; margin-bottom: 10px;">Judge Administration</h2>
-          <p style="color: var(--text-muted); font-size: 0.96rem; line-height: 1.6; max-width: 520px; margin: 0 auto 24px auto;">
-            You will be able to see the events you are judges of in the future.
-          </p>
-          <div style="background: rgba(0, 0, 0, 0.25); border: 1px dashed var(--surface-border); border-radius: 10px; padding: 20px; max-width: 480px; margin: 0 auto; color: #94a3b8; font-size: 0.88rem; line-height: 1.5;">
-            No hackathon events currently assigned for judging. When an event organiser invites you to judge a hackathon and you accept, your assigned event submissions, project rubrics, and evaluation tools will appear here.
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <div>
+            <h2 style="color: #fff; font-size: 1.3rem; margin-bottom: 4px;">⚖️ Assigned Projects for Evaluation</h2>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">Review submitted projects in your assigned tracks. Evaluations are strictly confidential.</p>
           </div>
+          <button class="btn btn-outline btn-sm" onclick="loadJudgeAssignments()">↻ Refresh Queue</button>
+        </div>
+        <div id="judgeAssignmentsContainer" style="display: flex; flex-direction: column; gap: 16px;">
+          <!-- Loaded dynamically via loadJudgeAssignments() -->
         </div>
       </div>
+
     </div>
 
   </div>
@@ -665,8 +666,30 @@
               <button class="btn btn-primary btn-sm" onclick="modalApplyExactDeadline()">Update Deadline</button>
             </div>
           </div>
+
+          <!-- Judging Results, Normalization & CSV Export (Organizer & Owner Only) -->
+          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; padding: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+              <div>
+                <strong style="font-size: 0.92rem; color: #c4b5fd;">📊 Judging Results & Normalization</strong>
+                <div style="font-size: 0.76rem; color: var(--text-muted);">Z-Score equalized scoring across judges</div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn btn-primary btn-sm" style="font-size: 0.78rem;" onclick="handleDownloadCSV()">📥 Export CSV</button>
+                <button class="btn btn-outline btn-sm" style="font-size: 0.78rem;" onclick="loadModalJudgingProgress()">↻ Progress</button>
+              </div>
+            </div>
+            <div id="modalJudgingProgressSummary" style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 8px;">
+              Click 'Progress' to view completed evaluations, review coverage, and Z-score normalized project rankings.
+            </div>
+            <div id="modalJudgingProgressContainer" style="display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto;">
+              <!-- Loaded dynamically via loadModalJudgingProgress() -->
+            </div>
+          </div>
         </div>
       </div>
+
+
 
     </div>
   </div>
@@ -2247,15 +2270,198 @@
         loadAdminDirectory();
       } else if (subTab === "events") {
         loadAdminManageEvents();
+      } else if (subTab === "judge") {
+        loadJudgeAssignments();
       }
     }
 
     function refreshCurrentAdminTab() {
       if (currentAdminSubTab === "users") loadAdminDirectory();
       else if (currentAdminSubTab === "events") loadAdminManageEvents();
-      else if (currentAdminSubTab === "judge") showToast("Judge queue refreshed.", "info");
+      else if (currentAdminSubTab === "judge") loadJudgeAssignments();
       else showToast("Refreshed.", "info");
     }
+
+    // Judge Dashboard: Load Assigned Projects
+    async function loadJudgeAssignments() {
+      const container = document.getElementById("judgeAssignmentsContainer");
+      if (!container) return;
+      container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 30px;">Loading assigned projects...</div>`;
+      try {
+        const res = await fetch(`${API_BASE}/api/judge/assignments`, { headers: getAuthHeaders() });
+        if (res.status === 401 || res.status === 403) {
+          container.innerHTML = `<div style="text-align: center; color: var(--danger); padding: 30px;">Access restricted to event judges.</div>`;
+          return;
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const assignments = await res.json();
+        if (!assignments || assignments.length === 0) {
+          container.innerHTML = `
+            <div style="background: var(--surface); border: 1px dashed var(--surface-border); border-radius: 10px; padding: 40px; text-align: center; color: var(--text-muted);">
+              <div style="font-size: 2.4rem; margin-bottom: 12px;">⚖️</div>
+              <h3 style="color: #fff; margin-bottom: 6px;">No Projects Assigned Yet</h3>
+              <p style="font-size: 0.9rem; max-width: 480px; margin: 0 auto;">You have no projects currently pending review in your assigned tracks.</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = assignments.map(a => {
+          const s = a.existing_score;
+          const funcVal = s && s.criteria && s.criteria.functionality ? s.criteria.functionality : 3;
+          const qualVal = s && s.criteria && s.criteria.quality ? s.criteria.quality : 3;
+          const innoVal = s && s.criteria && s.criteria.innovation ? s.criteria.innovation : 3;
+          const commVal = s && s.comment ? s.comment : "";
+
+          return `
+            <div style="background: var(--surface); border: 1px solid ${a.evaluated ? 'rgba(52, 211, 153, 0.3)' : 'var(--surface-border)'}; border-radius: 12px; padding: 20px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+                <div>
+                  <h3 style="color: #fff; font-size: 1.15rem; margin: 0 0 6px 0;">${escapeHtml(a.title)}</h3>
+                  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    ${a.track_name ? `<span class="track-tag">${escapeHtml(a.track_name)}</span>` : ''}
+                    ${a.team_name ? `<span style="font-size: 0.8rem; color: var(--text-muted);">Team: <strong>${escapeHtml(a.team_name)}</strong></span>` : ''}
+                    ${a.repo_url ? `<a href="${escapeHtml(a.repo_url)}" target="_blank" style="font-size: 0.8rem; color: var(--accent);">🔗 View Repository</a>` : ''}
+                  </div>
+                </div>
+                <div>
+                  ${a.evaluated ? `<span class="role-badge" style="background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.4);">✅ Evaluated</span>` : `<span class="role-badge" style="background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.4);">⏳ Needs Review</span>`}
+                </div>
+              </div>
+
+              ${a.summary ? `<p style="color: #cbd5e1; font-size: 0.9rem; line-height: 1.5; margin: 0 0 16px 0;">${escapeHtml(a.summary)}</p>` : ''}
+
+              <!-- Scoring Form -->
+              <form onsubmit="handleSubmitJudgeScore(event, '${escapeHtml(a.project_id)}')" style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--surface-border); border-radius: 8px; padding: 16px;">
+                <div style="font-weight: 600; font-size: 0.88rem; color: #c4b5fd; margin-bottom: 12px;">Evaluation Rubric (Scale 1.0 - 5.0):</div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 14px;">
+                  <div>
+                    <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Functionality (1-5)</label>
+                    <input type="number" step="0.5" min="1" max="5" id="score_func_${a.project_id}" value="${funcVal}" required style="width: 100%;">
+                  </div>
+                  <div>
+                    <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Code Quality (1-5)</label>
+                    <input type="number" step="0.5" min="1" max="5" id="score_qual_${a.project_id}" value="${qualVal}" required style="width: 100%;">
+                  </div>
+                  <div>
+                    <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Innovation (1-5)</label>
+                    <input type="number" step="0.5" min="1" max="5" id="score_inno_${a.project_id}" value="${innoVal}" required style="width: 100%;">
+                  </div>
+                </div>
+                <div style="margin-bottom: 12px;">
+                  <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Judge Feedback / Notes (Optional)</label>
+                  <textarea id="score_comm_${a.project_id}" placeholder="Provide constructive feedback for the team..." rows="2" style="width: 100%;">${escapeHtml(commVal)}</textarea>
+                </div>
+                <div style="display: flex; justify-content: flex-end;">
+                  <button type="submit" class="btn btn-primary btn-sm">${a.evaluated ? 'Update Evaluation' : 'Submit Evaluation'}</button>
+                </div>
+              </form>
+            </div>
+          `;
+        }).join("");
+      } catch (err) {
+        container.innerHTML = `<div style="text-align: center; color: var(--danger); padding: 20px;">Error loading judge assignments: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    async function handleSubmitJudgeScore(e, projId) {
+      e.preventDefault();
+      const funcInput = document.getElementById(`score_func_${projId}`);
+      const qualInput = document.getElementById(`score_qual_${projId}`);
+      const innoInput = document.getElementById(`score_inno_${projId}`);
+      const commInput = document.getElementById(`score_comm_${projId}`);
+
+      const payload = {
+        project_id: projId,
+        criteria: {
+          functionality: parseFloat(funcInput.value),
+          quality: parseFloat(qualInput.value),
+          innovation: parseFloat(innoInput.value),
+        },
+        comment: commInput ? commInput.value.trim() : "",
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/api/judge/scores`, {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+        showToast("Project evaluation saved successfully!", "success");
+        loadJudgeAssignments();
+      } catch (err) {
+        showToast(`Failed to submit evaluation: ${err.message}`, "error");
+      }
+    }
+
+    function handleDownloadCSV() {
+      const url = selectedEvent ? `${API_BASE}/api/events/${selectedEvent.id}/export.csv` : `${API_BASE}/api/export.csv`;
+      fetch(url, { headers: getAuthHeaders() })
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}: Unauthorized for CSV export`);
+          return res.blob();
+        })
+        .then(blob => {
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(blob);
+          link.download = `hackathon_judging_results_${selectedEvent ? selectedEvent.id : 'export'}.csv`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          showToast("CSV export downloaded successfully!", "success");
+        })
+        .catch(err => {
+          showToast(`Export failed: ${err.message}`, "error");
+        });
+    }
+
+    async function loadModalJudgingProgress() {
+      const summaryEl = document.getElementById("modalJudgingProgressSummary");
+      const container = document.getElementById("modalJudgingProgressContainer");
+      if (!selectedEvent || !container) return;
+
+      container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 15px;">Calculating normalized scores...</div>`;
+      try {
+        const res = await fetch(`${API_BASE}/api/events/${selectedEvent.id}/judging/progress`, {
+          headers: getAuthHeaders()
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        summaryEl.innerHTML = `
+          <strong>${data.total_projects}</strong> Projects &nbsp;|&nbsp; 
+          <strong>${data.total_scores}</strong> Reviews Submitted &nbsp;|&nbsp; 
+          <strong>${data.total_judges}</strong> Active Judges
+        `;
+
+        if (!data.projects || data.projects.length === 0) {
+          container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.85rem; padding: 10px;">No projects registered for this event.</div>`;
+          return;
+        }
+
+        container.innerHTML = data.projects.map((p, idx) => `
+          <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 6px; font-size: 0.85rem;">
+            <div>
+              <span style="color: var(--text-muted); font-size: 0.75rem; margin-right: 6px;">#${idx + 1}</span>
+              <strong>${escapeHtml(p.project_title)}</strong>
+              <span style="font-size: 0.78rem; color: var(--text-muted); margin-left: 8px;">(${escapeHtml(p.track_name || 'General')})</span>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center;">
+              <span style="font-size: 0.78rem; color: #94a3b8;">${p.reviews_count} reviews</span>
+              <span style="font-size: 0.78rem; color: #fde047;">Raw: ${p.raw_average !== null ? p.raw_average.toFixed(2) : 'N/A'}</span>
+              <span style="font-weight: 600; color: #34d399; font-size: 0.85rem;">Z-Score: ${p.normalized_score !== null ? p.normalized_score.toFixed(1) : 'N/A'}</span>
+            </div>
+          </div>
+        `).join("");
+      } catch (err) {
+        container.innerHTML = `<div style="color: var(--danger); font-size: 0.85rem; padding: 10px;">Failed to load judging progress: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
 
     // Owner Only: Master User Directory
     async function loadAdminDirectory() {

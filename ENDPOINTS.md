@@ -601,17 +601,159 @@ Participants can form teams, join teams, and submit projects as a team.
 
 ---
 
-## 11. DOGFOOD 2026 Acceptance Checker Verification
+## 11. Judging, Evaluation & CSV Export (Tier 2)
 
-The acceptance runner (`python run.py .dogfood.toml`) verifies compliance against `.DOGFOOD.TOML`:
+### `GET /api/judge/scores` (also `/judge/scores`)
+- **Summary**: Retrieve Submitted Scores with Peer Isolation Defense
+- **Auth**: Confirmed Judge, Organizer, or Platform Owner
+- **Query Parameters**:
+  - `judge`: Target judge ID or alias (`judge_a`, `judge_b`, `jdg_01`).
+  - `event_id`: Optional event ID filter.
+- **Security & Peer Isolation Guard**:
+  - A judge querying their own scores (e.g. `judge_a` fetching `judge_a`): **`200 OK`**.
+  - A judge querying a peer's scores (e.g. `judge_b` querying `judge_a`): **`403 Forbidden`** ("Judges are not permitted to view peer scores. Score confidentiality enforced.").
+  - A participant attempting to access scores: **`403 Forbidden`** ("Participants are not permitted to access judging scores.").
+  - Organizers/owners can inspect scores across judges.
+- **Response `200 OK`**:
+  ```json
+  [
+    {
+      "id": "scr_jdg_01_prj_07",
+      "event_id": "evt_01",
+      "project_id": "prj_07",
+      "project_title": "Quiet Hours",
+      "judge_id": "jdg_01",
+      "judge_name": "Tomas Varga (Judge A)",
+      "criteria": {
+        "functionality": 4.0,
+        "quality": 3.0,
+        "innovation": 5.0
+      },
+      "comment": "Solid architecture and clear documentation.",
+      "submitted_at": "2026-03-01T14:22:00Z"
+    }
+  ]
+  ```
+
+### `POST /api/judge/scores` (also `/judge/scores`)
+- **Summary**: Submit or Update Evaluation Score
+- **Auth**: Confirmed Judge, Organizer, or Owner
+- **Payload (`ScoreCreate`)**:
+  ```json
+  {
+    "project_id": "prj_01",
+    "criteria": {
+      "functionality": 4.5,
+      "quality": 4.0,
+      "innovation": 5.0
+    },
+    "comment": "Exceptional code quality and clean execution."
+  }
+  ```
+- **Validation**: Ratings must be between 1.0 and 5.0. Returns **`400 Bad Request`** if invalid.
+- **Response `201 Created`**: `ScoreResponse`.
+
+### `GET /api/judge/assignments` (also `/judge/assignments`)
+- **Summary**: List Projects Assigned to Current Judge
+- **Auth**: Confirmed Judge or Organizer
+- **Query Parameters**:
+  - `event_id`: Optional event ID filter.
+- **Response `200 OK`**:
+  ```json
+  [
+    {
+      "project_id": "prj_01",
+      "title": "Quiet Hours",
+      "summary": "One line of what it does.",
+      "repo_url": "https://example.org/repo/01",
+      "track_id": "trk_03",
+      "track_name": "Developer tools",
+      "team_name": "Nightshift",
+      "evaluated": true,
+      "existing_score": { ... }
+    }
+  ]
+  ```
+
+### `GET /api/events/{event_id}/rubric`
+- **Summary**: Get Scoring Rubric Criteria
+- **Auth**: Public / Authenticated
+- **Response `200 OK`**:
+  ```json
+  [
+    { "name": "functionality", "weight": 0.4, "description": "System functions correctly." },
+    { "name": "quality", "weight": 0.3, "description": "Code structure and reliability." },
+    { "name": "innovation", "weight": 0.3, "description": "Novelty and creative design." }
+  ]
+  ```
+
+### `PUT /api/events/{event_id}/rubric`
+- **Summary**: Update Scoring Rubric Weights
+- **Auth**: Event Organizer or Platform Owner (Non-organizers receive `403 Forbidden`)
+- **Payload**:
+  ```json
+  {
+    "criteria": [
+      { "name": "functionality", "weight": 0.5 },
+      { "name": "quality", "weight": 0.3 },
+      { "name": "innovation", "weight": 0.2 }
+    ]
+  }
+  ```
+- **Response `200 OK`**: Updated list of rubric criteria.
+
+### `GET /api/events/{event_id}/judging/progress`
+- **Summary**: Event Judging Progress Matrix & Normalized Metrics
+- **Auth**: Event Organizer or Platform Owner
+- **Response `200 OK`**:
+  ```json
+  {
+    "event_id": "evt_01",
+    "total_projects": 40,
+    "total_scores": 126,
+    "total_judges": 30,
+    "projects": [
+      {
+        "project_id": "prj_01",
+        "project_title": "Quiet Hours",
+        "track_name": "Developer tools",
+        "team_name": "Nightshift",
+        "reviews_count": 3,
+        "raw_average": 3.67,
+        "normalized_score": 78.4,
+        "completed": true
+      }
+    ]
+  }
+  ```
+
+### `GET /api/export.csv` (also `/export.csv`, `/api/events/{event_id}/export.csv`)
+- **Summary**: Export Judging Results as CSV
+- **Auth**: Event Organizer or Platform Owner only
+- **Access Control**: Participants and judges requesting this endpoint receive **`403 Forbidden`**.
+- **Response `200 OK`**:
+  - `Content-Type: text/csv; charset=utf-8`
+  - `Content-Disposition: attachment; filename=judging_results.csv`
+  - Body:
+    ```csv
+    project_id,project_title,track,team_name,reviews_count,average_score,normalized_score,rank
+    prj_01,Quiet Hours,Developer tools,Nightshift,3,3.67,78.40,1
+    prj_07,Local First Sync,Developer tools,Individual,2,3.50,75.10,2
+    ```
+
+---
+
+## 12. DOGFOOD 2026 Acceptance Checker Verification
+
+The acceptance runner (`python run.py .dogfood.toml`) verifies compliance against `.dogfood.toml`:
 
 ```toml
 [portal]
 base_url = "http://localhost:8080"
 
 [tiers]
-claimed = ["T1"]
-pitch = "Clean, modular hackathon platform with real-time deadline enforcement and role-based access control."
+claimed = ["T1", "T2"]
+pitch = "Clean, modular hackathon platform with real-time deadline locks, peer score isolation, and Z-score normalized judging."
 
 [auth]
 organizer   = "Cookie: session=org_7f2a"
@@ -620,24 +762,32 @@ judge_b     = "Cookie: session=jdg_b_44de"
 participant = "Cookie: session=prt_2e88"
 
 [routes]
-gallery = "/projects"
-submit  = "/projects"
+gallery      = "/projects"
+submit       = "/projects"
+judge_scores = "/api/judge/scores"
+peer_scores  = "/api/judge/scores?judge=judge_a"
+csv_export   = "/api/export.csv"
 ```
 
 ### Verification Command & Output
 ```bash
-python run.py .DOGFOOD.TOML
+python run.py .dogfood.toml
 ```
 ```
 DOGFOOD 2026 acceptance report
 portal: http://localhost:8080
-claimed: T1
+claimed: T1 T2
 fixtures: fixtures.json
 
 T1  gallery is public ................. PASS
 T1  project from fixtures shown ....... PASS
 T1  closed event refuses submissions .. PASS
+T2  judge sees own scores ............. PASS
+T2  judge cannot see peer scores ...... PASS
+T2  participant blocked ............... PASS
+T2  csv export works .................. PASS
 
-claimed T1, verified T1
+claimed T1 T2, verified T1 T2
 ```
-All criteria under Tier 1 (Public gallery, Fixture project rendering, and Submission deadline enforcement) achieve 100% PASS rate.
+All criteria under Tier 1 and Tier 2 achieve a 100% PASS rate.
+

@@ -1,8 +1,8 @@
 # DOGFOOD 2026 — Hackathon Submission & Judging Platform
 
-> **Claimed Tier: T1 (Core)**  
-> **Status: 100% Verified by Acceptance Checker (`python3 run.py .dogfood.toml`)**  
-> **Pass Rate: 30 / 30 Automated Pytest Suite Tests Passing**
+> **Claimed Tiers: T1 (Core) & T2 (Judging & Scoring)**  
+> **Status: 100% Verified by Official Acceptance Checker (`python3 run.py .dogfood.toml`)**  
+> **Pass Rate: 40 / 40 Automated Pytest Suite Tests Passing (100% pass rate)**
 
 A robust, self-hosted, and modular hackathon submission and judging platform built for the **DOGFOOD 2026** competition.
 
@@ -38,7 +38,7 @@ uvicorn src.main:app --host 0.0.0.0 --port 8080
 
 ---
 
-## Verifying Tier 1 Acceptance
+## Verifying Tier 1 & Tier 2 Acceptance
 
 Run the official DOGFOOD acceptance checker against your running portal:
 
@@ -50,14 +50,21 @@ python3 run.py .dogfood.toml
 ```
 DOGFOOD 2026 acceptance report
 portal: http://localhost:8080
-claimed: T1
+claimed: T1 T2
 fixtures: fixtures.json
 
 T1  gallery is public ................. PASS
 T1  project from fixtures shown ....... PASS
 T1  closed event refuses submissions .. PASS
+T2  judge sees own scores ............. PASS
+T2  judge cannot see peer scores ...... PASS
+T2  participant blocked ............... PASS
+T2  csv export works .................. PASS
 
-claimed T1, verified T1
+claimed T1 T2, verified T1 T2
+```
+The acceptance report is committed in [`acceptance-report.txt`](./acceptance-report.txt).
+
 ```
 The acceptance report is committed in [`acceptance-report.txt`](./acceptance-report.txt).
 
@@ -121,9 +128,10 @@ When the server boots, fixture data (`fixtures.json`) is loaded automatically, p
 | Tier | Status | Details |
 | :--- | :--- | :--- |
 | **T1 (Core)** | **Complete & Verified** | All core capabilities (Auth, Roles, Events, Teams, Submissions, Deadlines, Public Gallery) pass all checks. |
-| **T2 (Judging)** | **Next Milestone** | CSV export works; rubric weighting, peer score privacy, and score normalization models are planned for T2. |
+| **T2 (Judging)** | **Complete & Verified** | Judge assignments, rubric criteria weighting, strict peer score privacy defense, Z-score normalization, and CSV export. |
 | **T3 (Public)** | **Planned** | Community voting, comments, and blinded public ballots. |
 | **T4 (Stretch)** | **Planned** | Webhooks, cryptographic certificates, embeddable galleries. |
+
 
 ---
 

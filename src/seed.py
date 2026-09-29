@@ -15,6 +15,7 @@ from src.database import SessionLocal, init_db
 from src.models.user import User, UserRole, EventMember, EventRole
 from src.models.event import Event, Track
 from src.models.project import Project, Team, TeamMember, TeamMemberRole
+from src.models.judging import Score, RubricCriterion, JudgeTrackAssignment
 
 
 logger = logging.getLogger(__name__)
@@ -138,20 +139,66 @@ def seed_fixtures(fixture_path: str = "fixtures.json") -> None:
             db.commit()
 
             # 4. Link fixture judges and participants to event
-            event_members_to_seed = [
-                ("mem_jdg_01", event_id, "jdg_01", EventRole.JUDGE.value),
-                ("mem_jdg_02", event_id, "jdg_02", EventRole.JUDGE.value),
-                ("mem_usr_prt", event_id, "usr_prt", EventRole.PARTICIPANT.value),
-            ]
-            for mem_id, e_id, u_id, role in event_members_to_seed:
-                existing_mem = db.query(EventMember).filter(
-                    EventMember.event_id == e_id,
-                    EventMember.user_id == u_id,
-                ).first()
-                if not existing_mem:
-                    db.add(EventMember(id=mem_id, event_id=e_id, user_id=u_id, role=role))
+            judges_data = fixtures.get("judges", [])
+            for j in judges_data:
+                j_id = j["id"]
+                j_name = j.get("name", f"Judge {j_id}")
+                j_email = j.get("email", f"{j_id}@example.org")
+                j_tracks = j.get("tracks", [])
+
+                # Map specific session tokens for judge_a and judge_b
+                session_tok = "jdg_a_91bc" if j_id == "jdg_01" else ("jdg_b_44de" if j_id == "jdg_02" else f"usr_{j_id}")
+
+                u = db.query(User).filter(User.id == j_id).first()
+                if not u:
+                    u = User(
+                        id=j_id,
+                        name=j_name,
+                        email=j_email,
+                        role=UserRole.JUDGE.value,
+                        session_token=session_tok,
+                    )
+                    db.add(u)
                 else:
-                    existing_mem.role = role
+                    u.role = UserRole.JUDGE.value
+                    if session_tok:
+                        u.session_token = session_tok
+
+                mem = db.query(EventMember).filter(
+                    EventMember.event_id == event_id,
+                    EventMember.user_id == j_id,
+                ).first()
+                if not mem:
+                    db.add(EventMember(id=f"mem_{j_id}", event_id=event_id, user_id=j_id, role=EventRole.JUDGE.value))
+                else:
+                    mem.role = EventRole.JUDGE.value
+
+                # Assign judge to tracks
+                for trk_id in j_tracks:
+                    existing_assign = db.query(JudgeTrackAssignment).filter(
+                        JudgeTrackAssignment.judge_id == j_id,
+                        JudgeTrackAssignment.track_id == trk_id,
+                    ).first()
+                    if not existing_assign:
+                        db.add(
+                            JudgeTrackAssignment(
+                                id=f"jta_{j_id}_{trk_id}",
+                                event_id=event_id,
+                                judge_id=j_id,
+                                track_id=trk_id,
+                            )
+                        )
+
+            # Ensure usr_prt is participant
+            existing_prt = db.query(EventMember).filter(
+                EventMember.event_id == event_id,
+                EventMember.user_id == "usr_prt",
+            ).first()
+            if not existing_prt:
+                db.add(EventMember(id="mem_usr_prt", event_id=event_id, user_id="usr_prt", role=EventRole.PARTICIPANT.value))
+
+            db.commit()
+
             # 5. Seed Teams and Team Members
             teams_data = fixtures.get("teams", [])
             for tm in teams_data:
@@ -186,7 +233,6 @@ def seed_fixtures(fixture_path: str = "fixtures.json") -> None:
                             )
             db.commit()
 
-
             # 6. Seed Projects
             projects_data = fixtures.get("projects", [])
             for p in projects_data:
@@ -212,7 +258,61 @@ def seed_fixtures(fixture_path: str = "fixtures.json") -> None:
                     proj.repo_url = p.get("repo_url", proj.repo_url)
             db.commit()
 
-        logger.info(f"Database seeded successfully with event '{event_data.get('name', 'evt_01')}', tracks, members, teams, and {len(fixtures.get('projects', []))} projects.")
+            # 7. Seed Rubric Criteria
+            default_rubrics = [
+                ("functionality", 0.4, "System functions correctly according to specification."),
+                ("quality", 0.3, "Code structure, reliability, and clean execution."),
+                ("innovation", 0.3, "Novelty, elegance, and creative design."),
+            ]
+            for r_name, r_weight, r_desc in default_rubrics:
+                existing_crit = db.query(RubricCriterion).filter(
+                    RubricCriterion.event_id == event_id,
+                    RubricCriterion.name == r_name,
+                ).first()
+                if not existing_crit:
+                    db.add(
+                        RubricCriterion(
+                            id=f"crit_{event_id}_{r_name}",
+                            event_id=event_id,
+                            name=r_name,
+                            weight=r_weight,
+                            description=r_desc,
+                        )
+                    )
+            db.commit()
+
+            # 8. Seed Scores
+            scores_data = fixtures.get("scores", [])
+            for s in scores_data:
+                s_judge = s["judge"]
+                s_proj = s["project"]
+                s_crit = s.get("criteria", {})
+                s_comment = s.get("comment", "")
+
+                existing_score = db.query(Score).filter(
+                    Score.project_id == s_proj,
+                    Score.judge_id == s_judge,
+                ).first()
+                if not existing_score:
+                    db.add(
+                        Score(
+                            id=f"scr_{s_judge}_{s_proj}",
+                            event_id=event_id,
+                            project_id=s_proj,
+                            judge_id=s_judge,
+                            criteria=s_crit,
+                            comment=s_comment,
+                        )
+                    )
+                else:
+                    existing_score.criteria = s_crit
+                    existing_score.comment = s_comment
+            db.commit()
+
+        logger.info(
+            f"Database seeded successfully with event '{event_data.get('name', 'evt_01')}', tracks, {len(judges_data)} judges, "
+            f"teams, {len(fixtures.get('projects', []))} projects, and {len(fixtures.get('scores', []))} scores."
+        )
     finally:
         db.close()
 

@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import settings
 from src.database import init_db
-from src.routers import events_router, auth_router, platform_router, projects_router, teams_router
+from src.routers import events_router, auth_router, platform_router, projects_router, teams_router, judging_router
 from src.services.platform_service import PlatformService
 import src.auth as auth
 from src.seed import seed_fixtures
@@ -107,6 +107,10 @@ app = FastAPI(
             "name": "Authentication",
             "description": "User login, roles, and session tokens.",
         },
+        {
+            "name": "Judging & Scoring",
+            "description": "Judge assignments, evaluations, peer isolation, and results export.",
+        },
     ],
 )
 
@@ -119,7 +123,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register Events, Auth, and Platform routers
+# Register Events, Auth, Platform, Projects, Teams, and Judging routers
 app.include_router(events_router, prefix=settings.API_PREFIX)
 app.include_router(events_router)  # Also available at /events directly
 app.include_router(auth_router, prefix=settings.API_PREFIX)
@@ -130,6 +134,9 @@ app.include_router(projects_router, prefix=settings.API_PREFIX)
 app.include_router(projects_router)
 app.include_router(teams_router, prefix=settings.API_PREFIX)
 app.include_router(teams_router)
+app.include_router(judging_router, prefix=settings.API_PREFIX)
+app.include_router(judging_router)
+
 
 
 

@@ -100,6 +100,8 @@ class Project(Base):
     created_by = Column(String(64), nullable=True)
 
     team = relationship("Team", back_populates="projects")
+    track = relationship("Track")
+    event = relationship("Event")
 
     def __repr__(self) -> str:
         return f"<Project(id={self.id!r}, title={self.title!r}, event_id={self.event_id!r})>"
