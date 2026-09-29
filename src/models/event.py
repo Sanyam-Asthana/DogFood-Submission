@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import Optional
-from sqlalchemy import Column, String, Text, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, String, Text, DateTime, Boolean, ForeignKey, Integer
 from sqlalchemy.orm import relationship
 from src.database import Base
 
@@ -10,7 +10,7 @@ def _ensure_utc(dt: Optional[datetime]) -> Optional[datetime]:
         return None
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
-    return dt
+    return dt.astimezone(timezone.utc)
 
 
 class Event(Base):
@@ -27,7 +27,9 @@ class Event(Base):
     description = Column(Text, nullable=True, default="")
     submissions_open = Column(DateTime(timezone=True), nullable=True)
     submissions_close = Column(DateTime(timezone=True), nullable=False)
+    max_team_size = Column(Integer, default=4, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
+
     created_by = Column(String(64), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(

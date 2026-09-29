@@ -14,7 +14,7 @@ from pathlib import Path
 from src.database import SessionLocal, init_db
 from src.models.user import User, UserRole, EventMember, EventRole
 from src.models.event import Event, Track
-from src.models.project import Project, Team
+from src.models.project import Project, Team, TeamMember, TeamMemberRole
 
 
 logger = logging.getLogger(__name__)
@@ -152,7 +152,7 @@ def seed_fixtures(fixture_path: str = "fixtures.json") -> None:
                     db.add(EventMember(id=mem_id, event_id=e_id, user_id=u_id, role=role))
                 else:
                     existing_mem.role = role
-            # 5. Seed Teams
+            # 5. Seed Teams and Team Members
             teams_data = fixtures.get("teams", [])
             for tm in teams_data:
                 team_id = tm["id"]
@@ -166,7 +166,26 @@ def seed_fixtures(fixture_path: str = "fixtures.json") -> None:
                     db.add(team)
                 else:
                     team.name = tm.get("name", team_id)
+                db.commit()
+
+                for idx, email in enumerate(tm.get("members", [])):
+                    member_user = db.query(User).filter(User.email == email).first()
+                    if member_user:
+                        existing_tm = db.query(TeamMember).filter(
+                            TeamMember.team_id == team_id,
+                            TeamMember.user_id == member_user.id,
+                        ).first()
+                        if not existing_tm:
+                            db.add(
+                                TeamMember(
+                                    id=f"tmem_{team_id}_{member_user.id}",
+                                    team_id=team_id,
+                                    user_id=member_user.id,
+                                    role=TeamMemberRole.LEAD.value if idx == 0 else TeamMemberRole.MEMBER.value,
+                                )
+                            )
             db.commit()
+
 
             # 6. Seed Projects
             projects_data = fixtures.get("projects", [])

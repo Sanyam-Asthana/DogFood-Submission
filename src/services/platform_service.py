@@ -358,7 +358,14 @@ class PlatformService:
                 detail="User to invite as judge was not found on the platform.",
             )
 
-        # 4. Check if already a judge for this event
+        # 4. Ineligible users (Owners and Organizers cannot be event judges)
+        if invitee.role in (UserRole.OWNER.value, UserRole.ORGANIZER.value):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"User '{invitee.email}' is a platform administrator ({invitee.role}) and cannot be invited as a judge.",
+            )
+
+        # 5. Check if already a judge for this event
         existing_judge = db.query(EventMember).filter(
             EventMember.event_id == event_id,
             EventMember.user_id == invitee.id,
@@ -368,6 +375,20 @@ class PlatformService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"User '{invitee.email}' is already a judge for event '{event.name}'.",
+            )
+
+        # 6. Check if user is competing in a team for this event (conflict of interest)
+        from src.models.project import Team, TeamMember
+        existing_team = (
+            db.query(TeamMember)
+            .join(Team, TeamMember.team_id == Team.id)
+            .filter(Team.event_id == event_id, TeamMember.user_id == invitee.id)
+            .first()
+        )
+        if existing_team:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"User '{invitee.email}' is already competing in a team for this hackathon and cannot be a judge.",
             )
 
         # 5. Check if an active pending invitation already exists
@@ -487,18 +508,79 @@ class PlatformService:
 
     @staticmethod
     def get_event_participants(db: Session, event_id: str) -> List[EventMember]:
-        """List all confirmed participants for a specific event."""
-        return db.query(EventMember).filter(
+        """List all confirmed participants for a specific event, enriched with team info and sorted."""
+        from src.models.project import Team, TeamMember
+
+        participants = db.query(EventMember).filter(
             EventMember.event_id == event_id,
             EventMember.role == EventRole.PARTICIPANT.value,
         ).all()
 
+        team_members = (
+            db.query(TeamMember)
+            .join(Team, TeamMember.team_id == Team.id)
+            .filter(Team.event_id == event_id)
+            .all()
+        )
+        user_team_map = {
+            tm.user_id: (tm.team_id, tm.team.name if tm.team else tm.team_id, tm.role)
+            for tm in team_members
+        }
+
+        for p in participants:
+            t_info = user_team_map.get(p.user_id)
+            if t_info:
+                p.team_id = t_info[0]
+                p.team_name = t_info[1]
+                p.team_role = t_info[2]
+            else:
+                p.team_id = None
+                p.team_name = None
+                p.team_role = None
+
+        # Sort: team members first (alphabetical by team_id, then lead first), then solo participants (alphabetical by name/email)
+        def sort_key(p):
+            is_solo = 1 if p.team_id is None else 0
+            team_key = p.team_id or ""
+            role_key = 0 if getattr(p, "team_role", None) == "lead" else 1
+            name_key = (p.user.name if p.user and p.user.name else (p.user.email if p.user else p.user_id)).lower()
+            return (is_solo, team_key, role_key, name_key)
+
+        participants.sort(key=sort_key)
+        return participants
+
     @staticmethod
     def get_event_members(db: Session, event_id: str) -> List[EventMember]:
-        """List all members (participants and judges) for an event."""
-        return db.query(EventMember).filter(
+        """List all members (participants and judges) for an event, enriched with team info."""
+        from src.models.project import Team, TeamMember
+
+        members = db.query(EventMember).filter(
             EventMember.event_id == event_id,
         ).all()
+
+        team_members = (
+            db.query(TeamMember)
+            .join(Team, TeamMember.team_id == Team.id)
+            .filter(Team.event_id == event_id)
+            .all()
+        )
+        user_team_map = {
+            tm.user_id: (tm.team_id, tm.team.name if tm.team else tm.team_id, tm.role)
+            for tm in team_members
+        }
+
+        for m in members:
+            t_info = user_team_map.get(m.user_id)
+            if t_info:
+                m.team_id = t_info[0]
+                m.team_name = t_info[1]
+                m.team_role = t_info[2]
+            else:
+                m.team_id = None
+                m.team_name = None
+                m.team_role = None
+
+        return members
 
     @staticmethod
     def get_my_event_membership(db: Session, event_id: str, user: User) -> Optional[EventMember]:
@@ -522,11 +604,72 @@ class PlatformService:
 
         needs_commit = False
         for inv in invitations:
-            if inv.status == InvitationStatus.PENDING.value and inv.event:
-                if PlatformService.is_event_closed(inv.event):
+            if inv.status == InvitationStatus.PENDING.value:
+                if inv.event and PlatformService.is_event_closed(inv.event):
                     inv.status = InvitationStatus.EXPIRED.value
                     needs_commit = True
+                    continue
+                # If invitee became admin or already confirmed judge
+                invitee = db.query(User).filter(User.id == inv.invitee_id).first()
+                if not invitee or invitee.role in (UserRole.OWNER.value, UserRole.ORGANIZER.value):
+                    inv.status = InvitationStatus.EXPIRED.value
+                    needs_commit = True
+                    continue
+                is_judge = db.query(EventMember).filter(
+                    EventMember.event_id == event_id,
+                    EventMember.user_id == inv.invitee_id,
+                    EventMember.role == EventRole.JUDGE.value,
+                ).first()
+                if is_judge:
+                    inv.status = InvitationStatus.ACCEPTED.value
+                    needs_commit = True
+                    continue
         if needs_commit:
             db.commit()
 
+        if status:
+            invitations = [i for i in invitations if i.status == status]
+
         return invitations
+
+    @staticmethod
+    def cancel_judge_invitation(db: Session, invitation_id: str, user: User) -> JudgeInvitation:
+        """Cancel a pending judge invitation (Organizer or Owner only)."""
+        inv = db.query(JudgeInvitation).filter(JudgeInvitation.id == invitation_id).first()
+        if not inv:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Invitation '{invitation_id}' not found.",
+            )
+        if user.role not in (UserRole.OWNER.value, UserRole.ORGANIZER.value):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only organizers and owners can cancel judge invitations.",
+            )
+        inv.status = InvitationStatus.DECLINED.value
+        db.commit()
+        db.refresh(inv)
+        return inv
+
+    @staticmethod
+    def flush_and_reseed(db: Session) -> dict:
+        """Flush all dynamic platform data and reseed initial fixtures (Owner only)."""
+        from src.models.project import Project, Team, TeamMember, TeamInvitation
+        from src.models.event import Event, Track
+        from src.models.user import User, EventMember, JudgeInvitation
+        from src.seed import seed_fixtures
+
+        db.query(TeamInvitation).delete()
+        db.query(JudgeInvitation).delete()
+        db.query(TeamMember).delete()
+        db.query(Project).delete()
+        db.query(Team).delete()
+        db.query(EventMember).delete()
+        db.query(Track).delete()
+        db.query(Event).delete()
+        db.query(User).delete()
+        db.commit()
+
+        seed_fixtures()
+        logger.info("Database flushed and reseeded with default fixtures.")
+        return {"status": "success", "message": "Platform data flushed and reseeded from fixtures."}

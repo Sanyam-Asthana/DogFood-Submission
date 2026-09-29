@@ -42,12 +42,14 @@ router = APIRouter(
 
 def _to_event_response(event) -> EventResponse:
     """Helper to convert Event ORM model to EventResponse schema with computed properties."""
+    from src.models.event import _ensure_utc
     return EventResponse(
         id=event.id,
         name=event.name,
         description=event.description,
-        submissions_open=event.submissions_open,
-        submissions_close=event.submissions_close,
+        submissions_open=_ensure_utc(event.submissions_open),
+        submissions_close=_ensure_utc(event.submissions_close),
+        max_team_size=getattr(event, "max_team_size", 4) or 4,
         is_active=event.is_active,
         status=event.status,
         is_submission_open=event.is_submission_open(),
@@ -55,9 +57,10 @@ def _to_event_response(event) -> EventResponse:
         track_count=len(event.tracks) if event.tracks else 0,
         tracks=[TrackResponse.model_validate(t) for t in (event.tracks or [])],
         created_by=event.created_by,
-        created_at=event.created_at,
-        updated_at=event.updated_at,
+        created_at=_ensure_utc(event.created_at),
+        updated_at=_ensure_utc(event.updated_at),
     )
+
 
 
 @router.post(

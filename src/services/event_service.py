@@ -36,9 +36,11 @@ class EventService:
             description=event_in.description or "",
             submissions_open=open_time,
             submissions_close=close_time,
+            max_team_size=getattr(event_in, "max_team_size", 4) or 4,
             is_active=event_in.is_active,
             created_by=created_by,
         )
+
         db.add(event)
         db.flush()
 

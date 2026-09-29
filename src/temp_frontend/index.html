@@ -323,7 +323,7 @@
       <button class="nav-btn active" id="navEventsBtn" onclick="switchView('eventsView')">
         <span>🚀</span> Hackathons
       </button>
-      <button class="nav-btn" id="navInvitationsBtn" onclick="switchView('invitationsView')">
+      <button class="nav-btn" id="navInvitationsBtn" style="display:none;" onclick="switchView('invitationsView')">
         <span>📬</span> My Invitations <span id="invitationBadge" style="display:none; background: #3b82f6; color:#fff; border-radius: 99px; padding: 2px 6px; font-size: 0.7rem;">0</span>
       </button>
       <button class="nav-btn" id="navAdminBtn" style="display:none;" onclick="switchView('adminView')">
@@ -390,11 +390,11 @@
       </div>
     </div>
 
-    <!-- VIEW 2: MY JUDGE INVITATIONS -->
+    <!-- VIEW 2: MY INVITATIONS (Judges & Teams) -->
     <div id="invitationsView" class="app-view" style="display:none;">
       <div class="section-header">
         <div class="section-title">
-          <span>📬 My Judge Invitations</span>
+          <span>📬 My Invitations</span>
         </div>
         <button class="btn btn-outline btn-sm" onclick="loadUserInvitations()">↻ Refresh</button>
       </div>
@@ -429,6 +429,21 @@
 
       <!-- Subtab 1: Master User Directory (Owner Only) -->
       <div id="adminSubTabUsers">
+        <!-- Danger Zone: Platform Reset & Reseed (Owner Only) -->
+        <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 12px; padding: 18px 22px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+          <div>
+            <h3 style="color: #f87171; font-size: 1.05rem; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+              <span>⚠️</span> Platform Danger Zone: Reset & Reseed
+            </h3>
+            <p style="color: #cbd5e1; font-size: 0.85rem; margin: 0; max-width: 580px; line-height: 1.45;">
+              Flush all platform dynamic records (teams, invitations, submissions, tracks, custom users), restore the seeded test fixtures, and log out immediately.
+            </p>
+          </div>
+          <button class="btn btn-outline btn-sm" style="color: #f87171; border-color: #ef4444; background: rgba(239, 68, 68, 0.1); font-weight: 700;" onclick="handleOwnerFlushAndReseed()">
+            <span>🔄</span> Flush & Reseed Platform
+          </button>
+        </div>
+
         <div class="table-container">
           <table>
             <thead>
@@ -485,6 +500,28 @@
                 <input type="datetime-local" id="adminCreateClose" required>
               </div>
             </div>
+            <div class="form-group" style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 8px; padding: 14px;">
+              <label style="color: #38bdf8; font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                <span>👥</span> Maximum Team Size (Dropdown Selection)
+              </label>
+              <div style="font-size: 0.82rem; color: #cbd5e1; line-height: 1.45; margin-bottom: 8px;">
+                Select the team formation rules for this hackathon:
+                <br>&bull; <strong>1 Member (Solo)</strong>: Individual competition. Teammate invitations and team creation are disabled.
+                <br>&bull; <strong>2 to 20 Members</strong>: Team competition. Registered participants can form teams and invite teammates.
+                <br><span style="color: #fbbf24; font-size: 0.78rem;">⚠️ Important: Team size is permanent and cannot be modified once the event is created.</span>
+              </div>
+              <select id="adminCreateMaxTeamSize" required style="font-size: 0.95rem; font-weight: 700; max-width: 320px; padding: 10px 14px; background: rgba(0, 0, 0, 0.6); border: 1px solid var(--surface-border); border-radius: 8px; color: #fff;">
+                <option value="1">👤 1 Member (Solo / Individual)</option>
+                <option value="2">👥 2 Members (Duo)</option>
+                <option value="3">👥 3 Members (Trio)</option>
+                <option value="4" selected>👥 4 Members (Standard Quad - Default)</option>
+                <option value="5">👥 5 Members</option>
+                <option value="6">👥 6 Members</option>
+                <option value="8">👥 8 Members</option>
+                <option value="10">👥 10 Members</option>
+                <option value="20">👥 20 Members (Large Team)</option>
+              </select>
+            </div>
             <button type="submit" class="btn btn-primary" style="margin-top: 10px;">Launch Hackathon Event</button>
           </form>
         </div>
@@ -517,7 +554,10 @@
 
       <!-- Status & Countdown -->
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-        <span id="modalEventStatusBadge" class="status-badge status-open">ACTIVE</span>
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <span id="modalEventStatusBadge" class="status-badge status-open">ACTIVE</span>
+          <span id="modalEventTeamSizeBadge" class="status-badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">👥 Team Size: 4</span>
+        </div>
         <div class="countdown-chip" style="flex: 1; max-width: 320px;">
           <div>
             <div class="countdown-chip-time" id="modalCountdownTime">00:00:00</div>
@@ -535,6 +575,11 @@
         <div id="modalParticipationStatusArea">
           <!-- Populated dynamically -->
         </div>
+      </div>
+
+      <!-- Team Management Card (For registered participants) -->
+      <div id="modalTeamSection" style="display: none; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--surface-border); border-radius: 10px; padding: 16px;">
+        <!-- Populated dynamically via renderModalTeamSection() -->
       </div>
 
       <!-- Competition Tracks -->
@@ -612,7 +657,8 @@
               <button class="btn btn-outline btn-sm" onclick="modalShiftDeadline(3600)">+1 Hour</button>
               <button class="btn btn-outline btn-sm" onclick="modalShiftDeadline(86400)">+24 Hours</button>
               <button class="btn btn-outline btn-sm" onclick="modalShiftDeadline(-3600)">-1 Hour</button>
-              <button class="btn btn-danger btn-sm" onclick="modalCloseNow()">Close Submissions Now</button>
+              <button class="btn btn-outline btn-sm" onclick="modalShiftDeadline(-86400)">-24 Hours</button>
+              <button class="btn btn-danger btn-sm" onclick="modalCloseNow()">⛔ Close Submissions Now</button>
             </div>
             <div style="display: flex; gap: 8px;">
               <input type="datetime-local" id="modalExactDeadlineInput" style="font-size: 0.85rem;">
@@ -756,6 +802,11 @@
 
     // View Switching
     function switchView(viewId) {
+      if (viewId === "invitationsView" && (!currentUser || currentUser.role === "owner" || currentUser.role === "organizer")) {
+        showToast("Organizers and Platform Owners do not have an invitations portal.", "info");
+        viewId = "eventsView";
+      }
+
       document.querySelectorAll(".app-view").forEach(v => v.style.display = "none");
       document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
       
@@ -793,6 +844,8 @@
       document.getElementById("claimOwnerHeaderBtn").style.display = "none";
       document.getElementById("signOutBtn").style.display = "none";
       document.getElementById("navAdminBtn").style.display = "none";
+      const navInvBtn = document.getElementById("navInvitationsBtn");
+      if (navInvBtn) navInvBtn.style.display = "none";
       const invBadge = document.getElementById("invitationBadge");
       if (invBadge) invBadge.style.display = "none";
     }
@@ -830,6 +883,11 @@
       const isNonUser = user.role === "owner" || user.role === "organizer" || user.role === "judge";
       document.getElementById("navAdminBtn").style.display = isNonUser ? "inline-flex" : "none";
 
+      // Organizers and Platform Owners do NOT have "My Invitations" portal
+      const hasInvitationsAccess = user.role !== "owner" && user.role !== "organizer";
+      const navInvBtn = document.getElementById("navInvitationsBtn");
+      if (navInvBtn) navInvBtn.style.display = hasInvitationsAccess ? "inline-flex" : "none";
+
       const authBtn = document.getElementById("authModalBtn");
       if (authBtn) authBtn.style.display = "none";
       document.getElementById("signOutBtn").style.display = "inline-flex";
@@ -839,8 +897,13 @@
         document.cookie = `session=${token}; path=/; SameSite=Lax`;
       }
 
-      // Check for pending invitations
-      checkPendingInvitationsBadge();
+      // Check for pending invitations (only for users with access)
+      if (hasInvitationsAccess) {
+        checkPendingInvitationsBadge();
+      } else {
+        const invBadge = document.getElementById("invitationBadge");
+        if (invBadge) invBadge.style.display = "none";
+      }
     }
 
     function handleSignOut() {
@@ -935,7 +998,12 @@
           <div>
             <div class="event-card-header">
               <div class="event-card-title">${e.name}</div>
-              <span class="status-badge status-${e.status}">${e.status}</span>
+              <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                ${e.max_team_size === 1 
+                  ? '<span class="status-badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4);">👤 Solo (1)</span>' 
+                  : '<span class="status-badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">👥 Max Team: ' + (e.max_team_size || 4) + '</span>'}
+                <span class="status-badge status-${e.status}">${e.status}</span>
+              </div>
             </div>
             <p class="event-card-desc" style="margin-top: 8px;">${e.description || 'No description provided.'}</p>
           </div>
@@ -946,7 +1014,7 @@
                 <div class="countdown-chip-time">${formatCountdownShort(e.time_remaining_seconds, e.status)}</div>
                 <div class="countdown-chip-label">${e.status === 'open' ? 'Submissions Open' : e.status === 'closed' ? 'Submissions Closed' : 'Starts Soon'}</div>
               </div>
-              <span style="font-size: 0.8rem; color: var(--text-muted);">${e.track_count || 0} Tracks</span>
+              <span style="font-size: 0.8rem; color: var(--text-muted);">${e.track_count || 0} Tracks &bull; ${e.max_team_size === 1 ? 'Solo (1)' : 'Teams (max ' + (e.max_team_size || 4) + ')'}</span>
             </div>
 
             <div class="track-pills">
@@ -986,6 +1054,22 @@
         badge.className = `status-badge status-${selectedEvent.status}`;
         badge.textContent = selectedEvent.status.toUpperCase();
 
+        const teamBadge = document.getElementById("modalEventTeamSizeBadge");
+        if (teamBadge) {
+          const maxSize = selectedEvent.max_team_size || 4;
+          if (maxSize === 1) {
+            teamBadge.style.background = "rgba(168, 85, 247, 0.15)";
+            teamBadge.style.color = "#c084fc";
+            teamBadge.style.borderColor = "rgba(168, 85, 247, 0.4)";
+            teamBadge.textContent = "👤 Solo Hackathon (1 Member)";
+          } else {
+            teamBadge.style.background = "rgba(56, 189, 248, 0.15)";
+            teamBadge.style.color = "#38bdf8";
+            teamBadge.style.borderColor = "rgba(56, 189, 248, 0.4)";
+            teamBadge.textContent = `👥 Max Team Size: ${maxSize} Members`;
+          }
+        }
+
         // Tracks
         const tracksContainer = document.getElementById("modalTracksContainer");
         if (selectedEvent.tracks && selectedEvent.tracks.length > 0) {
@@ -1001,7 +1085,7 @@
 
         // Exact deadline input
         if (selectedEvent.submissions_close) {
-          const closeDate = new Date(selectedEvent.submissions_close);
+          const closeDate = parseUtcDate(selectedEvent.submissions_close);
           document.getElementById("modalExactDeadlineInput").value = toLocalISO(closeDate);
         }
 
@@ -1035,7 +1119,7 @@
 
     function startModalCountdown(deadlineStr, isOpen) {
       if (countdownInterval) clearInterval(countdownInterval);
-      const deadline = new Date(deadlineStr).getTime();
+      const deadline = parseUtcDate(deadlineStr).getTime();
 
       const update = () => {
         const now = Date.now();
@@ -1072,6 +1156,7 @@
             <button class="btn btn-primary btn-sm" onclick="closeEventModal(); openAuthModal('login')">Sign In to Register</button>
           </div>
         `;
+        renderModalTeamSection(false);
         return;
       }
 
@@ -1082,6 +1167,7 @@
             <span>👑</span> Platform Owners manage the platform and are forbidden from participating in competitions.
           </div>
         `;
+        renderModalTeamSection(false);
         return;
       }
 
@@ -1092,6 +1178,7 @@
             <span>🛠️</span> Platform Organisers manage hackathons and are forbidden from participating in competitions.
           </div>
         `;
+        renderModalTeamSection(false);
         return;
       }
 
@@ -1112,19 +1199,29 @@
                 <button class="btn btn-outline btn-sm" style="color: #f87171; border-color: rgba(239, 68, 68, 0.4); font-size: 0.8rem;" onclick="handleLeaveEventModal()">Step Down as Judge</button>
               </div>
             `;
+            renderModalTeamSection(false);
           } else {
+            const maxTeam = selectedEvent.max_team_size || 4;
+            const isSolo = maxTeam <= 1;
             container.innerHTML = `
               <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                <div style="color: #34d399; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
-                  <span>✅</span> You are registered as a Participant in this hackathon!
+                <div>
+                  <div style="color: #34d399; font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
+                    <span>✅</span> You are registered as a Participant in this hackathon!
+                  </div>
+                  <div style="font-size: 0.82rem; color: #cbd5e1; margin-top: 3px;">
+                    ${isSolo ? '👤 Individual (Solo) Competition &bull; Max 1 participant per project (teammate invitations disabled).' : `👥 Team Hackathon &bull; Max ${maxTeam} participants per team. Form a team or invite teammates below!`}
+                  </div>
                 </div>
                 <button class="btn btn-outline btn-sm" style="color: #f87171; border-color: rgba(239, 68, 68, 0.4); font-size: 0.8rem;" onclick="handleLeaveEventModal()">Unregister</button>
               </div>
             `;
+            await renderModalTeamSection(true);
           }
         } else {
+          renderModalTeamSection(false);
           const isClosed = selectedEvent.status === 'closed' || selectedEvent.is_active === false || 
-            (selectedEvent.submissions_close && new Date(selectedEvent.submissions_close) <= new Date());
+            (selectedEvent.submissions_close && parseUtcDate(selectedEvent.submissions_close) <= new Date());
           if (isClosed) {
             container.innerHTML = `
               <div style="color: #f87171; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
@@ -1141,6 +1238,7 @@
           }
         }
       } catch (e) {
+        renderModalTeamSection(false);
         container.innerHTML = `<button class="btn btn-primary btn-sm" onclick="handleJoinEventModal()">🚀 Register as Participant</button>`;
       }
     }
@@ -1158,7 +1256,7 @@
         return;
       }
       const isClosed = selectedEvent.status === 'closed' || selectedEvent.is_active === false || 
-        (selectedEvent.submissions_close && new Date(selectedEvent.submissions_close) <= new Date());
+        (selectedEvent.submissions_close && parseUtcDate(selectedEvent.submissions_close) <= new Date());
       if (isClosed) {
         showToast("Cannot join event: submissions are closed for this hackathon.", "error");
         return;
@@ -1197,6 +1295,327 @@
           await loadModalInvitedJudges();
           await loadModalParticipants();
         }
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    // Modal Team Management Functions (Registered Participants)
+    async function renderModalTeamSection(isParticipant) {
+      const container = document.getElementById("modalTeamSection");
+      if (!container || !selectedEvent) return;
+
+      if (!isParticipant) {
+        container.style.display = "none";
+        container.innerHTML = "";
+        return;
+      }
+
+      container.style.display = "block";
+      const maxTeamSize = selectedEvent.max_team_size || 4;
+
+      // 1. If solo hackathon (max_team_size <= 1)
+      if (maxTeamSize <= 1) {
+        container.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <div style="color: #60a5fa; font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
+                <span>👤</span> Individual (Solo) Competition
+              </div>
+              <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 3px;">
+                This hackathon is configured for solo participants only (Team Size = 1). Team creation and teammate invitations are disabled.
+              </div>
+            </div>
+            <span class="role-badge role-user" style="font-size: 0.75rem;">Solo Only</span>
+          </div>
+        `;
+        return;
+      }
+
+      // 2. Team Hackathon (maxTeamSize > 1)
+      container.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-muted); text-align: center; padding: 8px;">Loading team details...</div>`;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/events/${selectedEvent.id}/teams`, {
+          headers: getAuthHeaders()
+        });
+        const teams = res.ok ? await res.json() : [];
+
+        // Check if current user is in any team
+        const myTeam = teams.find(t => (t.members || []).some(m => 
+          m.user_id === currentUser.user_id || 
+          (currentUser.email && m.user_email && m.user_email.toLowerCase() === currentUser.email.toLowerCase())
+        ));
+
+        if (myTeam) {
+          const isLead = (myTeam.members || []).some(m => 
+            (m.user_id === currentUser.user_id || (currentUser.email && m.user_email && m.user_email.toLowerCase() === currentUser.email.toLowerCase())) && 
+            m.role === 'lead'
+          );
+
+          let pendingInvites = [];
+          try {
+            const invRes = await fetch(`${API_BASE}/api/teams/${myTeam.id}/invitations`, {
+              headers: getAuthHeaders()
+            });
+            if (invRes.ok) {
+              const allInvs = await invRes.json();
+              pendingInvites = (allInvs || []).filter(i => i.status === 'pending');
+            }
+          } catch (e) {}
+
+          const currentMemberCount = (myTeam.members || []).length;
+          const isFull = currentMemberCount >= maxTeamSize;
+
+          container.innerHTML = `
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                <div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <strong style="color: #fff; font-size: 1.05rem;">👥 Team: ${myTeam.name}</strong>
+                    <span class="role-badge role-participant" style="font-size: 0.75rem;">${currentMemberCount} / ${maxTeamSize} Members</span>
+                  </div>
+                  <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">
+                    ${isLead ? '👑 You are the Team Leader' : '👤 You are a Team Member'} &bull; Team ID: <code>${myTeam.id}</code>
+                  </div>
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  ${isLead ? `
+                    <button class="btn btn-outline btn-sm" style="color: #f87171; border-color: rgba(239, 68, 68, 0.4); font-size: 0.78rem;" onclick="handleDissolveTeam('${myTeam.id}')">🗑️ Dissolve Team</button>
+                    ${currentMemberCount > 1 ? `<button class="btn btn-outline btn-sm" style="color: #fbbf24; border-color: rgba(245, 158, 11, 0.4); font-size: 0.78rem;" onclick="handleLeaveTeam('${myTeam.id}')">Leave Team</button>` : ''}
+                  ` : `
+                    <button class="btn btn-outline btn-sm" style="color: #f87171; border-color: rgba(239, 68, 68, 0.4); font-size: 0.78rem;" onclick="handleLeaveTeam('${myTeam.id}')">Leave Team</button>
+                  `}
+                </div>
+              </div>
+
+              <!-- Members Roster -->
+              <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--surface-border); border-radius: 8px; padding: 10px; margin-bottom: 12px;">
+                <strong style="font-size: 0.82rem; color: #94a3b8; display: block; margin-bottom: 6px;">Team Roster:</strong>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                  ${(myTeam.members || []).map(m => `
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; padding: 4px 6px; background: rgba(255,255,255,0.02); border-radius: 4px;">
+                      <span>
+                        <strong>${m.user_name || m.user_email || m.user_id}</strong>
+                        ${m.user_email ? `<span style="color: var(--text-muted); font-size: 0.78rem; margin-left: 4px;">(${m.user_email})</span>` : ''}
+                      </span>
+                      <span class="role-badge ${m.role === 'lead' ? 'role-owner' : 'role-user'}" style="font-size: 0.7rem; padding: 2px 8px;">
+                        ${m.role === 'lead' ? '👑 Leader' : 'Member'}
+                      </span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+
+              ${!isFull ? `
+                <!-- Invite Teammate Form -->
+                <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--surface-border); border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+                  <label style="font-size: 0.83rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 6px;">Invite Teammate to ${myTeam.name}:</label>
+                  <form onsubmit="handleSendTeamInvite(event, '${myTeam.id}')" style="display: flex; gap: 8px;">
+                    <input type="text" id="modalTeamInviteInput" placeholder="User Email or User ID" required style="flex: 1; font-size: 0.85rem;">
+                    <button type="submit" class="btn btn-primary btn-sm">Send Invite</button>
+                  </form>
+                </div>
+              ` : `
+                <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 8px 12px; font-size: 0.82rem; color: #6ee7b7; display: flex; align-items: center; gap: 6px;">
+                  <span>✅</span> Team is at maximum capacity (${maxTeamSize}/${maxTeamSize} members).
+                </div>
+              `}
+
+              ${pendingInvites.length > 0 ? `
+                <div style="margin-top: 10px;">
+                  <span style="font-size: 0.78rem; color: #fde047; font-weight: 600;">Pending Teammate Invitations:</span>
+                  <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
+                    ${pendingInvites.map(inv => `
+                      <div style="background: rgba(0,0,0,0.2); padding: 5px 8px; border-radius: 6px; font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center;">
+                        <span>✉️ ${inv.invitee_email || inv.invitee_id}</span>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                          <span class="status-badge status-upcoming" style="font-size: 0.7rem;">Pending Response</span>
+                          <button class="btn btn-outline btn-sm" style="font-size: 0.7rem; padding: 2px 6px; color: #f87171; border-color: rgba(239, 68, 68, 0.4);" onclick="handleCancelTeamInvite('${inv.id}')">✕ Cancel</button>
+                        </div>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          `;
+        } else {
+          // User is a participant without a team
+          const openTeams = (teams || []).filter(t => (t.members || []).length < maxTeamSize);
+          const defaultTeamName = (currentUser.email ? currentUser.email.split('@')[0] : 'My') + "'s Team";
+
+          container.innerHTML = `
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <strong style="color: #fff; font-size: 1rem; display: flex; align-items: center; gap: 6px;">
+                  <span>👥</span> Team & Teammates (Max ${maxTeamSize} Members per Team)
+                </strong>
+                <span class="role-badge role-user" style="font-size: 0.72rem;">No Team Yet</span>
+              </div>
+
+              <!-- Form Team & Invite Teammate -->
+              <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--surface-border); border-radius: 8px; padding: 14px; margin-bottom: 12px;">
+                <label style="font-size: 0.88rem; font-weight: 700; color: #38bdf8; display: block; margin-bottom: 4px;">🚀 Form a Team & Invite Teammates:</label>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">
+                  Name your team and optionally invite your first teammate right away by their email address or user ID.
+                </p>
+                <form onsubmit="handleCreateTeam(event, '${selectedEvent.id}')" style="display: flex; flex-direction: column; gap: 10px;">
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                      <label style="font-size: 0.78rem; color: #cbd5e1; display: block; margin-bottom: 3px;">Team Name</label>
+                      <input type="text" id="modalCreateTeamNameInput" value="${defaultTeamName}" placeholder="e.g. Autonomous Hackers" required style="width: 100%; font-size: 0.85rem;">
+                    </div>
+                    <div>
+                      <label style="font-size: 0.78rem; color: #cbd5e1; display: block; margin-bottom: 3px;">Invite Teammate (Email or User ID)</label>
+                      <input type="text" id="modalCreateTeamInviteInput" placeholder="teammate@example.com (optional)" style="width: 100%; font-size: 0.85rem;">
+                    </div>
+                  </div>
+                  <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px;">
+                    <button type="submit" class="btn btn-primary btn-sm">Create Team & Send Invite</button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- Join Existing Team -->
+              <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--surface-border); border-radius: 8px; padding: 12px;">
+                <strong style="font-size: 0.82rem; color: #94a3b8; display: block; margin-bottom: 8px;">Or Join an Open Team:</strong>
+                ${openTeams.length === 0 ? `
+                  <div style="font-size: 0.82rem; color: var(--text-muted); font-style: italic;">No open teams available. Form your own team above!</div>
+                ` : `
+                  <div style="display: flex; flex-direction: column; gap: 6px;">
+                    ${openTeams.map(t => `
+                      <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--surface-border); border-radius: 6px; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                        <div>
+                          <strong style="color: #fff; font-size: 0.88rem;">${t.name}</strong>
+                          <span style="font-size: 0.78rem; color: var(--text-muted); margin-left: 6px;">(${(t.members || []).length}/${maxTeamSize} members)</span>
+                        </div>
+                        <button class="btn btn-outline btn-sm" style="font-size: 0.75rem; padding: 2px 8px;" onclick="handleJoinTeam('${t.id}')">Join Team</button>
+                      </div>
+                    `).join('')}
+                  </div>
+                `}
+              </div>
+            </div>
+          `;
+        }
+      } catch (err) {
+        container.innerHTML = `<div style="color: var(--danger); font-size: 0.82rem;">Could not load team data: ${err.message}</div>`;
+      }
+    }
+
+    async function handleCreateTeam(e, eventId) {
+      e.preventDefault();
+      const input = document.getElementById("modalCreateTeamNameInput");
+      const inviteInput = document.getElementById("modalCreateTeamInviteInput");
+      const name = input ? input.value.trim() : "";
+      const invitee = inviteInput ? inviteInput.value.trim() : "";
+      if (!name) return showToast("Please enter a team name", "error");
+
+      try {
+        const res = await fetch(`${API_BASE}/api/events/${eventId}/teams`, {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ name })
+        });
+        const teamData = await res.json();
+        if (!res.ok) throw new Error(teamData.detail || `HTTP ${res.status}`);
+
+        if (invitee) {
+          const payload = invitee.includes("@") ? { email: invitee } : { user_id: invitee };
+          const invRes = await fetch(`${API_BASE}/api/teams/${teamData.id}/invitations`, {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify(payload)
+          });
+          const invData = await invRes.json();
+          if (!invRes.ok) {
+            showToast(`Team '${teamData.name}' created, but invite failed: ${invData.detail}`, "error");
+          } else {
+            showToast(`Team '${teamData.name}' formed & invitation sent to ${invitee}!`, "success");
+          }
+        } else {
+          showToast(`Team '${teamData.name}' created!`, "success");
+        }
+
+        await renderModalParticipation();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    async function handleJoinTeam(teamId) {
+      try {
+        const res = await fetch(`${API_BASE}/api/teams/${teamId}/join`, {
+          method: "POST",
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        showToast(`Joined team '${data.name}'!`, "success");
+        await renderModalParticipation();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    async function handleDissolveTeam(teamId) {
+      if (!confirm("Are you sure you want to dissolve this team?\n\nAll members will become normal single participants again, and any pending invitations will be cancelled.")) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/teams/${teamId}/dissolve`, {
+          method: "POST",
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        showToast(data.message || "Team dissolved. You are now a single participant.", "info");
+        await renderModalParticipation();
+        const orgPanel = document.getElementById("modalOrganizerPanel");
+        if (orgPanel && orgPanel.style.display !== "none") {
+          await loadModalParticipants();
+        }
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    async function handleLeaveTeam(teamId) {
+      if (!confirm("Are you sure you want to leave this team? If only one member remains, the team will be dissolved and they will become a normal single participant.")) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/teams/${teamId}/leave`, {
+          method: "POST",
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        showToast(data.message || "Left team.", "info");
+        await renderModalParticipation();
+        const orgPanel = document.getElementById("modalOrganizerPanel");
+        if (orgPanel && orgPanel.style.display !== "none") {
+          await loadModalParticipants();
+        }
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    async function handleSendTeamInvite(e, teamId) {
+      e.preventDefault();
+      const input = document.getElementById("modalTeamInviteInput");
+      const val = input ? input.value.trim() : "";
+      if (!val) return;
+      const payload = val.includes("@") ? { email: val } : { user_id: val };
+      try {
+        const res = await fetch(`${API_BASE}/api/teams/${teamId}/invite`, {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        showToast(`Team invitation sent to ${data.invitee_email || data.invitee_id}!`, "success");
+        if (input) input.value = "";
+        await renderModalParticipation();
       } catch (err) {
         showToast(err.message, "error");
       }
@@ -1248,15 +1667,90 @@
           container.innerHTML = `<span style="font-size: 0.85rem; color: var(--text-muted);">No participants registered yet.</span>`;
           return;
         }
-        container.innerHTML = participants.map(p => `
-          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--surface-border); border-radius: 6px; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-            <div>
-              <span style="font-size: 0.88rem; font-weight: 600; color: #fff;">🚀 ${p.user_name || p.user_email || p.user_id}</span>
-              ${p.user_email ? `<span style="font-size: 0.78rem; color: var(--text-muted); margin-left: 6px;">(${p.user_email})</span>` : ''}
+
+        // Group into teams (sorted alphabetically by team_id) and solo participants
+        const teamGroups = {};
+        const soloParticipants = [];
+
+        participants.forEach(p => {
+          if (p.team_id) {
+            if (!teamGroups[p.team_id]) {
+              teamGroups[p.team_id] = {
+                team_id: p.team_id,
+                team_name: p.team_name || p.team_id,
+                members: []
+              };
+            }
+            teamGroups[p.team_id].members.push(p);
+          } else {
+            soloParticipants.push(p);
+          }
+        });
+
+        const sortedTeamIds = Object.keys(teamGroups).sort((a, b) => a.localeCompare(b));
+        let html = '';
+
+        // 1. Teams (sorted alphabetically by team ID)
+        if (sortedTeamIds.length > 0) {
+          html += sortedTeamIds.map(tId => {
+            const team = teamGroups[tId];
+            return `
+              <div style="background: rgba(0, 0, 0, 0.35); border: 1px solid var(--surface-border); border-radius: 8px; padding: 12px; margin-bottom: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 6px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <strong style="color: #38bdf8; font-size: 0.95rem;">👥 Team: ${team.team_name}</strong>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace;">(ID: ${team.team_id})</span>
+                  </div>
+                  <span class="role-badge role-participant" style="font-size: 0.72rem;">${team.members.length} Members</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                  ${team.members.map(m => `
+                    <div style="background: rgba(255, 255, 255, 0.02); border-radius: 4px; padding: 6px 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span style="font-size: 0.85rem; font-weight: 600; color: #fff;">${m.user_name || m.user_email || m.user_id}</span>
+                        ${m.user_email ? `<span style="font-size: 0.78rem; color: var(--text-muted);">(${m.user_email})</span>` : ''}
+                        <span class="role-badge ${m.team_role === 'lead' ? 'role-owner' : 'role-user'}" style="font-size: 0.68rem; padding: 1px 6px;">
+                          ${m.team_role === 'lead' ? '👑 Team Lead' : 'Member'}
+                        </span>
+                      </div>
+                      <button class="btn btn-outline btn-sm" style="font-size: 0.72rem; padding: 2px 8px;" onclick="prefillAndInviteJudge('${m.user_email || m.user_id}')">Invite as Judge</button>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+
+        // 2. Solo Participants (clearly visually distinguishable set under the same list of participants)
+        html += `
+          <div style="background: rgba(168, 85, 247, 0.06); border: 1px dashed rgba(168, 85, 247, 0.4); border-radius: 8px; padding: 14px; margin-top: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <strong style="color: #c084fc; font-size: 0.92rem; display: flex; align-items: center; gap: 6px;">
+                <span>👤</span> Solo Participants (${soloParticipants.length})
+              </strong>
+              <span class="role-badge" style="background: rgba(168, 85, 247, 0.2); color: #e9d5ff; font-size: 0.72rem;">Individual / No Team</span>
             </div>
-            <button class="btn btn-outline btn-sm" style="font-size: 0.75rem; padding: 2px 8px;" onclick="prefillAndInviteJudge('${p.user_email || p.user_id}')">Invite as Judge</button>
+
+            ${soloParticipants.length > 0 ? `
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                ${soloParticipants.map(p => `
+                  <div style="background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 4px; padding: 6px 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                    <div>
+                      <span style="font-size: 0.85rem; font-weight: 600; color: #fff;">👤 ${p.user_name || p.user_email || p.user_id}</span>
+                      ${p.user_email ? `<span style="font-size: 0.78rem; color: var(--text-muted); margin-left: 6px;">(${p.user_email})</span>` : ''}
+                    </div>
+                    <button class="btn btn-outline btn-sm" style="font-size: 0.72rem; padding: 2px 8px;" onclick="prefillAndInviteJudge('${p.user_email || p.user_id}')">Invite as Judge</button>
+                  </div>
+                `).join('')}
+              </div>
+            ` : `
+              <div style="font-size: 0.82rem; color: var(--text-muted); font-style: italic;">No solo participants. All registered participants are currently assigned to teams.</div>
+            `}
           </div>
-        `).join('');
+        `;
+
+        container.innerHTML = html;
       } catch (e) {
         container.innerHTML = `<span style="font-size: 0.85rem; color: var(--danger);">${e.message}</span>`;
       }
@@ -1293,7 +1787,10 @@
               <span style="font-size: 0.88rem; font-weight: 600; color: #fff;">📬 ${i.invitee_email || i.invitee_id}</span>
               <span style="font-size: 0.78rem; color: #94a3b8; margin-left: 6px;">(Invited by: ${i.inviter_name || i.inviter_id})</span>
             </div>
-            <span class="status-badge status-upcoming">Pending Response</span>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="status-badge status-upcoming">Pending Response</span>
+              <button class="btn btn-outline btn-sm" style="font-size: 0.72rem; padding: 2px 6px; color: #f87171; border-color: rgba(239, 68, 68, 0.4);" onclick="handleCancelJudgeInvite('${i.id}')">✕ Cancel</button>
+            </div>
           </div>
         `).join('');
       } catch (e) {
@@ -1350,10 +1847,8 @@
 
     async function modalShiftDeadline(seconds) {
       if (!selectedEvent) return;
-      const current = new Date(selectedEvent.submissions_close).getTime();
-      const now = Date.now();
-      const base = seconds > 0 ? Math.max(now, current) : current;
-      const target = base + seconds * 1000;
+      const current = parseUtcDate(selectedEvent.submissions_close).getTime();
+      const target = current + seconds * 1000;
       const newClose = new Date(target).toISOString();
       await executeModalDeadlineUpdate(newClose);
     }
@@ -1367,7 +1862,7 @@
     async function modalApplyExactDeadline() {
       const val = document.getElementById("modalExactDeadlineInput").value;
       if (!val) return showToast("Select a date and time", "error");
-      const iso = new Date(val).toISOString();
+      const iso = localInputToUtcIso(val);
       await executeModalDeadlineUpdate(iso);
     }
 
@@ -1497,13 +1992,15 @@
     // INVITATIONS VIEW
     async function loadUserInvitations() {
       const container = document.getElementById("invitationsListContainer");
+      if (!container) return;
+
       if (currentRole === "guest" || !currentUser) {
         container.innerHTML = `
           <div style="background: var(--surface); border: 1px solid var(--surface-border); border-radius: 12px; padding: 40px; text-align: center;">
             <div style="font-size: 2.2rem; margin-bottom: 12px;">📬</div>
             <h3 style="color: #fff; margin-bottom: 8px;">Sign In to View Invitations</h3>
             <p style="color: var(--text-muted); margin-bottom: 20px; max-width: 480px; margin-left: auto; margin-right: auto;">
-              Organizers invite registered platform users to judge specific hackathons. Sign in or create an account to view and manage your judging invitations.
+              Sign in or create an account to view and manage your judging and team invitations.
             </p>
             <button class="btn btn-primary btn-sm" onclick="openAuthModal('login')">🔐 Sign In / Register</button>
           </div>
@@ -1512,10 +2009,12 @@
       }
 
       try {
-        const res = await fetch(`${API_BASE}/api/invitations/my`, {
-          headers: getAuthHeaders()
-        });
-        if (res.status === 401) {
+        const [judgeRes, teamRes] = await Promise.all([
+          fetch(`${API_BASE}/api/invitations/my`, { headers: getAuthHeaders() }),
+          fetch(`${API_BASE}/api/invitations/teams/my`, { headers: getAuthHeaders() })
+        ]);
+
+        if (judgeRes.status === 401 || teamRes.status === 401) {
           container.innerHTML = `
             <div style="background: var(--surface); border: 1px solid var(--surface-border); border-radius: 12px; padding: 32px; text-align: center;">
               <p style="color: var(--text-muted); margin-bottom: 14px;">Your session is no longer active. Please sign in again to access invitations.</p>
@@ -1524,42 +2023,96 @@
           `;
           return;
         }
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const invs = await res.json();
 
-        if (!invs || invs.length === 0) {
+        const judgeInvs = judgeRes.ok ? await judgeRes.json() : [];
+        const teamInvs = teamRes.ok ? await teamRes.json() : [];
+
+        if ((!judgeInvs || judgeInvs.length === 0) && (!teamInvs || teamInvs.length === 0)) {
           container.innerHTML = `
             <div style="background: var(--surface); border: 1px solid var(--surface-border); border-radius: 12px; padding: 40px; text-align: center; color: var(--text-muted);">
-              You have no judge invitations at this time.
+              You have no active invitations (judging or team) at this time.
             </div>
           `;
           return;
         }
 
-        container.innerHTML = invs.map(i => `
-          <div style="background: var(--surface); border: 1px solid var(--surface-border); border-radius: 12px; padding: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-            <div>
-              <div style="font-size: 1.1rem; font-weight: 700; color: #fff;">Judge Invitation: ${i.event_name || i.event_id}</div>
-              <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
-                Invited by: <strong>${i.inviter_name || i.inviter_id}</strong> &bull; Status: <span class="status-badge ${i.status === 'accepted' ? 'status-open' : (i.status === 'declined' || i.status === 'expired') ? 'status-closed' : 'status-upcoming'}">${i.status.toUpperCase()}</span>
+        let html = '';
+
+        // Section 1: Team Invitations
+        if (teamInvs && teamInvs.length > 0) {
+          html += `
+            <div style="margin-bottom: 20px;">
+              <h3 style="color: #38bdf8; font-size: 1.05rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                <span>👥</span> Teammate & Team Invitations
+              </h3>
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                ${teamInvs.map(i => `
+                  <div style="background: var(--surface); border: 1px solid var(--surface-border); border-radius: 12px; padding: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                      <div style="font-size: 1.1rem; font-weight: 700; color: #fff;">Team: ${i.team_name || i.team_id}</div>
+                      <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
+                        Hackathon: <strong>${i.event_name || i.event_id}</strong> &bull; Invited by: <strong>${i.inviter_name || i.inviter_id}</strong>
+                      </div>
+                    </div>
+
+                    ${i.status === 'pending' ? `
+                      <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary btn-sm" onclick="respondTeamInvitation('${i.id}', true)">Accept & Join Team</button>
+                        <button class="btn btn-outline btn-sm" onclick="respondTeamInvitation('${i.id}', false)">Decline</button>
+                      </div>
+                    ` : i.status === 'expired' ? `
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="status-badge status-closed">EXPIRED</span>
+                        <span style="font-size: 0.82rem; color: #f87171; font-weight: 500;">(Submissions Closed)</span>
+                      </div>
+                    ` : `
+                      <span class="status-badge ${i.status === 'accepted' ? 'status-open' : 'status-closed'}">${i.status.toUpperCase()}</span>
+                    `}
+                  </div>
+                `).join('')}
               </div>
             </div>
+          `;
+        }
 
-            ${i.status === 'pending' ? `
-              <div style="display: flex; gap: 8px;">
-                <button class="btn btn-primary btn-sm" onclick="respondInvitation('${i.id}', true)">Accept & Become Judge</button>
-                <button class="btn btn-outline btn-sm" onclick="respondInvitation('${i.id}', false)">Decline</button>
+        // Section 2: Judge Invitations
+        if (judgeInvs && judgeInvs.length > 0) {
+          html += `
+            <div>
+              <h3 style="color: #93c5fd; font-size: 1.05rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                <span>⚖️</span> Judging Invitations
+              </h3>
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                ${judgeInvs.map(i => `
+                  <div style="background: var(--surface); border: 1px solid var(--surface-border); border-radius: 12px; padding: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                      <div style="font-size: 1.1rem; font-weight: 700; color: #fff;">Judge Invitation: ${i.event_name || i.event_id}</div>
+                      <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
+                        Invited by: <strong>${i.inviter_name || i.inviter_id}</strong> &bull; Status: <span class="status-badge ${i.status === 'accepted' ? 'status-open' : (i.status === 'declined' || i.status === 'expired') ? 'status-closed' : 'status-upcoming'}">${i.status.toUpperCase()}</span>
+                      </div>
+                    </div>
+
+                    ${i.status === 'pending' ? `
+                      <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary btn-sm" onclick="respondInvitation('${i.id}', true)">Accept & Become Judge</button>
+                        <button class="btn btn-outline btn-sm" onclick="respondInvitation('${i.id}', false)">Decline</button>
+                      </div>
+                    ` : i.status === 'expired' ? `
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="status-badge status-closed">EXPIRED</span>
+                        <span style="font-size: 0.82rem; color: #f87171; font-weight: 500;">(Event Closed)</span>
+                      </div>
+                    ` : `
+                      <span class="status-badge ${i.status === 'accepted' ? 'status-open' : 'status-closed'}">${i.status.toUpperCase()}</span>
+                    `}
+                  </div>
+                `).join('')}
               </div>
-            ` : i.status === 'expired' ? `
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="status-badge status-closed">EXPIRED</span>
-                <span style="font-size: 0.82rem; color: #f87171; font-weight: 500;">(Event Closed)</span>
-              </div>
-            ` : `
-              <span class="status-badge ${i.status === 'accepted' ? 'status-open' : 'status-closed'}">${i.status.toUpperCase()}</span>
-            `}
-          </div>
-        `).join('');
+            </div>
+          `;
+        }
+
+        container.innerHTML = html;
       } catch (err) {
         container.innerHTML = `<div style="color: var(--text-muted); padding: 24px; text-align: center;">Could not load invitations: ${err.message}</div>`;
       }
@@ -1582,20 +2135,48 @@
       }
     }
 
+    async function respondTeamInvitation(invId, accept) {
+      try {
+        const action = accept ? "accept" : "decline";
+        const res = await fetch(`${API_BASE}/api/invitations/teams/${invId}/${action}`, {
+          method: "POST",
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        showToast(`Team invitation ${action}ed!`, accept ? "success" : "info");
+        await loadUserInvitations();
+        await checkPendingInvitationsBadge();
+        if (selectedEvent) {
+          await renderModalParticipation();
+        }
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
     async function checkPendingInvitationsBadge() {
       if (currentRole === "guest" || !currentUser) return;
       try {
-        const res = await fetch(`${API_BASE}/api/invitations/my`, { headers: getAuthHeaders() });
-        if (res.ok) {
-          const invs = await res.json();
-          const pending = (invs || []).filter(i => i.status === "pending").length;
-          const badge = document.getElementById("invitationBadge");
-          if (pending > 0) {
-            badge.textContent = pending;
-            badge.style.display = "inline-block";
-          } else {
-            badge.style.display = "none";
-          }
+        const [judgeRes, teamRes] = await Promise.all([
+          fetch(`${API_BASE}/api/invitations/my`, { headers: getAuthHeaders() }),
+          fetch(`${API_BASE}/api/invitations/teams/my`, { headers: getAuthHeaders() })
+        ]);
+        let pending = 0;
+        if (judgeRes.ok) {
+          const invs = await judgeRes.json();
+          pending += (invs || []).filter(i => i.status === "pending").length;
+        }
+        if (teamRes.ok) {
+          const invs = await teamRes.json();
+          pending += (invs || []).filter(i => i.status === "pending").length;
+        }
+        const badge = document.getElementById("invitationBadge");
+        if (pending > 0) {
+          badge.textContent = pending;
+          badge.style.display = "inline-block";
+        } else {
+          badge.style.display = "none";
         }
       } catch (e) {}
     }
@@ -1761,6 +2342,57 @@
       }
     }
 
+    async function handleOwnerFlushAndReseed() {
+      if (!confirm("⚠️ DANGER: Are you sure you want to flush all platform data and restore default fixtures?\n\nThis will remove all dynamic teams, invitations, and custom users, restore default test accounts, and log you out immediately.")) {
+        return;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/api/platform/reset-database`, {
+          method: "POST",
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        alert("✅ " + (data.message || "Platform reset and reseeded successfully. You are now being logged out."));
+        handleSignOut();
+        await loadAllEvents();
+      } catch (err) {
+        showToast("Reset failed: " + err.message, "error");
+      }
+    }
+
+    async function handleCancelTeamInvite(invId) {
+      if (!confirm("Cancel this teammate invitation?")) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/invitations/teams/${invId}/cancel`, {
+          method: "POST",
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        showToast("Teammate invitation cancelled.", "info");
+        await renderModalParticipation();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    async function handleCancelJudgeInvite(invId) {
+      if (!confirm("Cancel this judge invitation?")) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/events/judges/invitations/${invId}/cancel`, {
+          method: "POST",
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        showToast("Judge invitation cancelled.", "info");
+        await loadModalInvitedJudges();
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
     // Owner & Organiser: Modify & Manage Events List
     async function loadAdminManageEvents() {
       const container = document.getElementById("adminEventsListContainer");
@@ -1789,7 +2421,7 @@
                   <span class="status-badge status-${e.status}">${e.status}</span>
                 </div>
                 <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
-                  ID: <code>${e.id}</code> &bull; Tracks: <strong>${e.track_count || (e.tracks || []).length}</strong> &bull; Deadline: <strong>${e.submissions_close ? new Date(e.submissions_close).toLocaleString() : 'Not set'}</strong>
+                  ID: <code>${e.id}</code> &bull; Tracks: <strong>${e.track_count || (e.tracks || []).length}</strong> &bull; Team Size: <strong>${e.max_team_size === 1 ? 'Solo (1)' : 'Up to ' + (e.max_team_size || 4)}</strong> &bull; Deadline: <strong>${e.submissions_close ? parseUtcDate(e.submissions_close).toLocaleString() : 'Not set'}</strong>
                 </div>
               </div>
 
@@ -1808,12 +2440,17 @@
 
     async function handleAdminCreateEvent(e) {
       e.preventDefault();
+      const openVal = document.getElementById("adminCreateOpen").value;
+      const closeVal = document.getElementById("adminCreateClose").value;
+      const teamSizeVal = parseInt(document.getElementById("adminCreateMaxTeamSize").value, 10) || 4;
+
       const payload = {
         id: document.getElementById("adminCreateId").value.trim(),
         name: document.getElementById("adminCreateName").value.trim(),
         description: document.getElementById("adminCreateDesc").value.trim(),
-        submissions_open: new Date(document.getElementById("adminCreateOpen").value || Date.now()).toISOString(),
-        submissions_close: new Date(document.getElementById("adminCreateClose").value).toISOString()
+        max_team_size: teamSizeVal,
+        submissions_open: openVal ? localInputToUtcIso(openVal) : new Date().toISOString(),
+        submissions_close: localInputToUtcIso(closeVal)
       };
 
       try {
@@ -1858,6 +2495,28 @@
     }
 
     // Helpers
+    function localInputToUtcIso(inputVal) {
+      if (!inputVal) return new Date().toISOString();
+      const d = new Date(inputVal);
+      if (isNaN(d.getTime())) {
+        const [datePart, timePart] = inputVal.split("T");
+        const [y, m, day] = datePart.split("-").map(Number);
+        const [h, min] = timePart.split(":").map(Number);
+        return new Date(y, m - 1, day, h, min, 0).toISOString();
+      }
+      return d.toISOString();
+    }
+
+    function parseUtcDate(dateStr) {
+      if (!dateStr) return new Date();
+      if (typeof dateStr === "number") return new Date(dateStr);
+      let s = String(dateStr).trim();
+      if (!s.endsWith("Z") && !/[+-]\d{2}:?\d{2}$/.test(s)) {
+        s += "Z";
+      }
+      return new Date(s);
+    }
+
     function toLocalISO(d) {
       const pad = (n) => String(n).padStart(2, '0');
       return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;

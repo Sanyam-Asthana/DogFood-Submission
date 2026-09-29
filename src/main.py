@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import settings
 from src.database import init_db
-from src.routers import events_router, auth_router, platform_router, projects_router
+from src.routers import events_router, auth_router, platform_router, projects_router, teams_router
 from src.services.platform_service import PlatformService
 import src.auth as auth
 from src.seed import seed_fixtures
@@ -54,6 +54,13 @@ async def lifespan(app: FastAPI):
     try:
         logger.info("Checking/seeding initial fixtures...")
         seed_fixtures()
+        print("""
+seeded. test logins:
+  organizer    Cookie: session=org_7f2a
+  judge_a      Cookie: session=jdg_a_91bc
+  judge_b      Cookie: session=jdg_b_44de
+  participant  Cookie: session=prt_2e88
+""", flush=True)
     except Exception as e:
         logger.warning(f"Seeding fixtures encountered an issue: {e}")
 
@@ -121,6 +128,9 @@ app.include_router(platform_router, prefix=settings.API_PREFIX)
 app.include_router(platform_router)
 app.include_router(projects_router, prefix=settings.API_PREFIX)
 app.include_router(projects_router)
+app.include_router(teams_router, prefix=settings.API_PREFIX)
+app.include_router(teams_router)
+
 
 
 
@@ -145,9 +155,19 @@ def get_current_user():
     return auth.get_current_user()
 
 
+from pathlib import Path
+from fastapi import Request
+from fastapi.responses import FileResponse, RedirectResponse
+
+frontend_index_path = Path(__file__).resolve().parent / "temp_frontend" / "index.html"
+
+
 @app.get("/", tags=["Health & Info"], summary="API Root / Health Check")
-def root_info():
-    """Returns portal service status, current version, and links to documentation."""
+def root_info(request: Request):
+    """Returns portal service status, current version, or redirects browser users to /app."""
+    accept_header = request.headers.get("accept", "")
+    if "text/html" in accept_header:
+        return RedirectResponse(url="/app")
     return {
         "portal": settings.APP_NAME,
         "version": settings.APP_VERSION,
@@ -164,14 +184,14 @@ def health_check():
     return {"status": "ok"}
 
 
-# Serve Testing Studio frontend
-from pathlib import Path
-from fastapi.responses import FileResponse
-
-frontend_index_path = Path(__file__).resolve().parent / "temp_frontend" / "index.html"
-
-
 @app.get("/app", include_in_schema=False)
 @app.get("/portal", include_in_schema=False)
 def serve_portal():
-    return FileResponse(frontend_index_path)
+    return FileResponse(
+        frontend_index_path,
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )

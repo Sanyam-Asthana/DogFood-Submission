@@ -115,6 +115,17 @@ Pre-seeded fixtures provide the following test session tokens:
   ```
 - **Response `200 OK`**: Updated user profile with `role: "user"`.
 
+### `POST /api/platform/reset-database`
+- **Summary**: Flush and Reseed Database
+- **Auth**: `owner` only (`403 Forbidden` for non-owners)
+- **Description**: Wipes all transient platform records (teams, team invitations, judge invitations, event registrations, competition submissions, custom users) and reseeds the platform with default fixture accounts (`org_7f2a`, `jdg_a_91bc`, `jdg_b_44de`, `prt_2e88`).
+- **Response `200 OK`**:
+  ```json
+  {
+    "message": "Platform database successfully flushed and reseeded with default fixtures."
+  }
+  ```
+
 ---
 
 ## 4. Authentication Endpoints
@@ -207,13 +218,15 @@ Pre-seeded fixtures provide the following test session tokens:
     "description": "Global developer challenge",
     "submissions_open": "2026-03-15T00:00:00Z",
     "submissions_close": "2026-03-17T23:59:59Z",
+    "max_team_size": 4,
     "is_active": true,
     "tracks": [
       { "name": "AI Agents", "description": "Agentic workflows" }
     ]
   }
   ```
-- **Response `201 Created`**: Single `EventResponse` object.
+- **Note on `max_team_size`**: Specifies the team capacity constraint (`1` for solo/individual competition, `2`–`20` for team hackathons). Locked upon creation and immutable thereafter.
+- **Response `201 Created`**: Single `EventResponse` object containing `max_team_size`.
 
 ### `GET /api/events/{event_id}`
 - **Summary**: Event Details by ID
@@ -335,9 +348,100 @@ Pre-seeded fixtures provide the following test session tokens:
 - **Auth**: Authenticated Invitee
 - **Response `200 OK`**: Updated invitation with `status: "declined"`.
 
+### `POST /api/events/judges/invitations/{invitation_id}/cancel` (also `DELETE /api/events/judges/invitations/{invitation_id}`)
+- **Summary**: Cancel / Revoke Pending Judge Invitation
+- **Auth**: `organizer` or `owner`
+- **Description**: Revokes a pending judge invitation sent to a user.
+- **Response `200 OK`**: Updated invitation with `status: "declined"`.
+
 ---
 
-## 8. Projects & Submission Gallery (T1 Core)
+## 8. Team Formation & Membership (T1 Core)
+
+Participants can form teams, join teams, and submit projects as a team.
+
+### `POST /api/events/{event_id}/teams` (also `/events/{event_id}/teams`)
+- **Summary**: Form a Competition Team
+- **Auth**: Authenticated `participant` of the event
+- **Restrictions**: 
+  - Submissions must be open (`400 Bad Request` if deadline passed).
+  - User cannot already be in a team for this event (`400 Bad Request`).
+  - Creator automatically becomes team `lead`.
+- **Request Body**:
+  ```json
+  {
+    "name": "Team CyberWizards"
+  }
+  ```
+- **Response `201 Created`**:
+  ```json
+  {
+    "id": "tm_12345678",
+    "event_id": "evt_01",
+    "name": "Team CyberWizards",
+    "created_at": "2026-03-01T12:00:00Z",
+    "member_count": 1,
+    "members": [
+      {
+        "id": "tmem_abc12345",
+        "team_id": "tm_12345678",
+        "user_id": "usr_prt",
+        "role": "lead",
+        "joined_at": "2026-03-01T12:00:00Z",
+        "user_name": "Ada Okonkwo",
+        "user_email": "ada@example.org"
+      }
+    ],
+    "project_id": null
+  }
+  ```
+
+### `GET /api/events/{event_id}/teams` (also `/events/{event_id}/teams`)
+- **Summary**: List Teams in Event
+- **Auth**: None (Public)
+- **Response `200 OK`**: Array of `TeamResponse` objects with full member rosters.
+
+### `GET /api/teams/{team_id}` (also `/teams/{team_id}`)
+- **Summary**: Get Team Details
+- **Auth**: None (Public)
+- **Response `200 OK`**: Detailed `TeamResponse` object.
+
+### `POST /api/teams/{team_id}/join` (also `/teams/{team_id}/join`)
+- **Summary**: Join a Team
+- **Auth**: Authenticated `participant` of the same event
+- **Restrictions**: Event submissions must be open; caller must not be on another team.
+- **Response `200 OK`**: Updated `TeamResponse` with caller added as `member`.
+
+### `POST /api/teams/{team_id}/leave` (also `/teams/{team_id}/leave`)
+- **Summary**: Leave a Team
+- **Auth**: Authenticated team member
+- **Rule**: If only one or zero members remain after leaving, the team is automatically dissolved and the remaining member becomes a normal single participant again.
+- **Response `200 OK`**:
+  ```json
+  {
+    "status": "success",
+    "message": "Left team 'tm_123'. As only one or zero members remained, the team was dissolved and any remaining member is now a single participant.",
+    "team_id": "tm_123",
+    "team_dissolved": true
+  }
+  ```
+
+### `POST /api/teams/{team_id}/dissolve` (also `DELETE /api/teams/{team_id}`)
+- **Summary**: Dissolve a Team
+- **Auth**: Team Leader or Platform `owner` (`403 Forbidden` for non-leaders)
+- **Description**: Dissolves the team. All team members are released and become normal single participants again. Any pending invitations to the team are cancelled.
+- **Response `200 OK`**:
+  ```json
+  {
+    "status": "success",
+    "message": "Team 'Team Name' has been dissolved. All former members are now single participants.",
+    "team_id": "tm_123"
+  }
+  ```
+
+---
+
+## 9. Projects & Submission Gallery (T1 Core)
 
 ### `GET /api/projects` (also `/projects`)
 - **Summary**: Public Project Gallery
@@ -356,6 +460,7 @@ Pre-seeded fixtures provide the following test session tokens:
         "id": "prj_01",
         "event_id": "evt_01",
         "team_id": "tm_01",
+        "team_name": "Nightshift",
         "track_id": "trk_04",
         "title": "Glass Signal",
         "summary": "One line of what it does.",
@@ -370,7 +475,7 @@ Pre-seeded fixtures provide the following test session tokens:
 ### `POST /api/projects` (also `/projects`)
 - **Summary**: Submit a Project
 - **Auth**: Authenticated Participant
-- **Description**: Submits a project to a hackathon event.
+- **Description**: Submits a project to a hackathon event. Binds optional track and team.
 - **Deadline Enforcement**: If the event's `submissions_close` has passed (e.g. `evt_01`), the submission is rejected with **`400 Bad Request`**:
   ```json
   {
@@ -382,6 +487,7 @@ Pre-seeded fixtures provide the following test session tokens:
   {
     "event_id": "evt_01",
     "track_id": "trk_01",
+    "team_id": "tm_01",
     "title": "My Awesome Project",
     "summary": "AI agents that run locally",
     "repo_url": "https://github.com/example/repo"
@@ -394,9 +500,108 @@ Pre-seeded fixtures provide the following test session tokens:
 - **Auth**: None (Public)
 - **Response `200 OK`**: Detailed `ProjectResponse`.
 
+### `PUT /api/projects/{project_id}` (also `PATCH /api/projects/{project_id}`)
+- **Summary**: Edit Project (Until Deadline)
+- **Auth**: Authenticated Author or Team Member
+- **Description**: Allows modifying submission details (`title`, `summary`, `repo_url`, `track_id`, `team_id`) before the submission deadline closes.
+- **Deadline Enforcement**: If the event's deadline has passed, edits are strictly rejected with **`400 Bad Request`**:
+  ```json
+  {
+    "detail": "Submissions for event 'Sample Hack 2026' are closed."
+  }
+  ```
+- **Authorization Enforcement**: If non-author / non-teammate attempts edits, rejected with **`403 Forbidden`**.
+- **Response `200 OK`**: Updated `ProjectResponse`.
+
+### `DELETE /api/projects/{project_id}`
+- **Summary**: Delete Project Submission (Until Deadline)
+- **Auth**: Authenticated Author or Platform Admin
+- **Response `200 OK`**: `{"message": "Project 'prj_01' deleted successfully.", "project_id": "prj_01"}`
+
 ---
 
-## 9. DOGFOOD 2026 Acceptance Checker Verification
+## 10. Teams & Team Invitations (T1 Core)
+
+### `POST /api/events/{event_id}/teams`
+- **Summary**: Form a Team
+- **Auth**: Authenticated Participant in Event
+- **Description**: Creates a new team in the specified event with caller as team leader (`lead`).
+- **Solo Constraint**: If event has `max_team_size == 1`, returns **`400 Bad Request`** ("Solo hackathon: team formation is not allowed").
+- **Request Body**:
+  ```json
+  {
+    "name": "Team Hyperion"
+  }
+  ```
+- **Response `201 Created`**: Single `TeamResponse` object.
+
+### `GET /api/events/{event_id}/teams`
+- **Summary**: List Teams in Event
+- **Auth**: None (Public)
+- **Response `200 OK`**: Array of `TeamResponse` objects with roster and member count.
+
+### `GET /api/teams/{team_id}`
+- **Summary**: Get Team Details
+- **Auth**: None (Public)
+- **Response `200 OK`**: Detailed `TeamResponse` with members and linked project.
+
+### `POST /api/teams/{team_id}/join`
+- **Summary**: Join an Open Team
+- **Auth**: Authenticated Participant in Event
+- **Description**: Joins an existing team if it has open capacity (`len(members) < max_team_size`).
+- **Response `200 OK`**: Updated `TeamResponse`.
+
+### `POST /api/teams/{team_id}/leave`
+- **Summary**: Leave a Team
+- **Auth**: Authenticated Team Member
+- **Description**: Leaves current team. If last member leaves, the team is removed. If leader leaves, leadership transfers to first remaining member.
+- **Response `200 OK`**: `{"message": "Successfully left team 'tm_123'.", "team_id": "tm_123"}`
+
+### `POST /api/teams/{team_id}/invite`
+- **Summary**: Invite Teammate to Team
+- **Auth**: Authenticated Team Member
+- **Description**: Sends a team invitation to any registered user on the platform by email or user ID.
+- **Capacity Enforcement**: Fails with **`400 Bad Request`** if team is already full.
+- **Request Body**:
+  ```json
+  {
+    "email": "teammate@example.com"
+  }
+  ```
+- **Response `201 Created`**: Single `TeamInvitationResponse` with `status: "pending"`.
+
+### `GET /api/teams/{team_id}/invitations`
+- **Summary**: List Sent Team Invitations
+- **Auth**: Authenticated Team Member
+- **Response `200 OK`**: Array of pending `TeamInvitationResponse` objects sent by this team.
+
+### `GET /api/invitations/teams/my`
+- **Summary**: List My Team Invitations
+- **Auth**: Authenticated User
+- **Description**: Retrieves all team invitations addressed to the current user (displayed in "My Invitations").
+- **Response `200 OK`**: Array of `TeamInvitationResponse` objects.
+
+### `POST /api/invitations/teams/{invitation_id}/accept`
+- **Summary**: Accept Team Invitation
+- **Auth**: Authenticated Invitee
+- **Description**: Accepts invitation, auto-enrolls invitee as event participant if not already registered, and joins the team.
+- **Response `200 OK`**: `TeamInvitationResponse` with `status: "accepted"`.
+
+### `POST /api/invitations/teams/{invitation_id}/decline`
+- **Summary**: Decline Team Invitation
+- **Auth**: Authenticated Invitee
+- **Description**: Declines the team invitation.
+- **Response `200 OK`**: `TeamInvitationResponse` with `status: "declined"`.
+
+### `POST /api/invitations/teams/{invitation_id}/cancel` (also `DELETE /api/invitations/teams/{invitation_id}`)
+- **Summary**: Cancel / Revoke Team Invitation
+- **Auth**: Team member or `owner`
+- **Description**: Cancels or revokes a team invitation sent to a user.
+- **Response `200 OK`**: `TeamInvitationResponse` with `status: "declined"`.
+
+---
+
+## 11. DOGFOOD 2026 Acceptance Checker Verification
 
 The acceptance runner (`python run.py .dogfood.toml`) verifies compliance against `.DOGFOOD.TOML`:
 

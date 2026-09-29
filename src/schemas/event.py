@@ -55,10 +55,18 @@ class EventBase(BaseModel):
         description="ISO 8601 UTC timestamp when submissions close (hard deadline enforced by T1).",
         json_schema_extra={"example": "2026-03-01T18:00:00Z"},
     )
+    max_team_size: int = Field(
+        default=4,
+        ge=1,
+        le=20,
+        description="Maximum allowed team size (1 for solo/individual hackathons). Cannot be altered once created.",
+        json_schema_extra={"example": 4},
+    )
     is_active: bool = Field(
         default=True,
         description="Whether the event is active. Set false to archive.",
     )
+
 
 
 class EventCreate(EventBase):

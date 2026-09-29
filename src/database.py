@@ -53,6 +53,12 @@ def get_db() -> Generator[Session, None, None]:
 def init_db() -> None:
     """Create all database tables and ensure RLS is enabled on PostgreSQL."""
     Base.metadata.create_all(bind=engine)
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE events ADD COLUMN max_team_size INTEGER DEFAULT 4;"))
+            conn.commit()
+        except Exception:
+            pass
     if "postgresql" in str(engine.url):
         try:
             with engine.connect() as conn:

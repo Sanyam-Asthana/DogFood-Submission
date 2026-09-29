@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class ProjectCreate(BaseModel):
     event_id: Optional[str] = Field("evt_01", description="Event ID to submit project for")
     track_id: Optional[str] = Field(None, description="Optional competition track ID")
+    team_id: Optional[str] = Field(None, description="Optional team ID")
     team_name: Optional[str] = Field(None, description="Optional team name")
     title: str = Field(..., min_length=1, max_length=255, description="Project title")
     summary: Optional[str] = Field("", max_length=5000, description="Short summary of what it does")
@@ -17,6 +18,7 @@ class ProjectUpdate(BaseModel):
     summary: Optional[str] = Field(None, max_length=5000)
     repo_url: Optional[str] = Field(None, max_length=512)
     track_id: Optional[str] = None
+    team_id: Optional[str] = None
 
 
 class ProjectResponse(BaseModel):
@@ -25,6 +27,7 @@ class ProjectResponse(BaseModel):
     id: str
     event_id: str
     team_id: Optional[str] = None
+    team_name: Optional[str] = None
     track_id: Optional[str] = None
     title: str
     summary: Optional[str] = ""

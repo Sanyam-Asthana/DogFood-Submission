@@ -60,7 +60,11 @@ def _to_member_response(m) -> EventMemberResponse:
         user_email=m.user.email if m.user else None,
         role=m.role,
         joined_at=m.joined_at,
+        team_id=getattr(m, "team_id", None),
+        team_name=getattr(m, "team_name", None),
+        team_role=getattr(m, "team_role", None),
     )
+
 
 
 # ---------------------------------------------------------------------------
@@ -303,3 +307,41 @@ def decline_invitation(
 ):
     invitation = PlatformService.respond_to_invitation(db, invitation_id, current_user, accept=False)
     return _to_invitation_response(invitation)
+
+
+@router.post(
+    "/events/judges/invitations/{invitation_id}/cancel",
+    response_model=JudgeInvitationResponse,
+    summary="Cancel Pending Judge Invitation",
+    description="Cancel/revoke a pending judge invitation. Requires Organizer or Owner role.",
+)
+@router.delete(
+    "/events/judges/invitations/{invitation_id}",
+    response_model=JudgeInvitationResponse,
+    summary="Cancel Pending Judge Invitation (DELETE)",
+)
+def cancel_judge_invitation(
+    invitation_id: str,
+    current_user: User = Depends(require_organizer),
+    db: Session = Depends(get_db),
+):
+    invitation = PlatformService.cancel_judge_invitation(db, invitation_id, current_user)
+    return _to_invitation_response(invitation)
+
+
+# ---------------------------------------------------------------------------
+# Platform Reset & Maintenance (Owner Only)
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/platform/reset-database",
+    summary="Flush and Reseed Platform Database",
+    description="Wipes all transient platform records (invitations, teams, submissions, events, dynamic users) and reseeds default accounts and fixtures. Requires Owner role.",
+)
+def reset_database(
+    _: User = Depends(require_owner),
+    db: Session = Depends(get_db),
+):
+    PlatformService.flush_and_reseed(db)
+    return {"message": "Platform database successfully flushed and reseeded with default fixtures."}
+

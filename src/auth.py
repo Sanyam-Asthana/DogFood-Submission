@@ -1,17 +1,29 @@
 import os
+import logging
+from typing import Optional
 from supabase import create_client, Client
 from dotenv import load_dotenv, find_dotenv
 
-# 1. Initialize the client
-# In production, load these from environment variables!
-load_dotenv(find_dotenv())
-print(os.getenv("CONFIRM"))
-SUPABASE_URL = os.getenv("SUPABASE_PUBLIC_URL")
-SUPABASE_KEY = os.getenv("ANON_KEY")
+logger = logging.getLogger(__name__)
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# 1. Initialize the client
+load_dotenv(find_dotenv())
+SUPABASE_URL = os.getenv("SUPABASE_PUBLIC_URL") or "http://localhost:8000"
+SUPABASE_KEY = os.getenv("ANON_KEY") or os.getenv("SUPABASE_ANON_KEY") or ""
+
+supabase: Optional[Client] = None
+if SUPABASE_URL and SUPABASE_KEY:
+    try:
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        logger.info("Supabase client initialized successfully.")
+    except Exception as e:
+        logger.warning(f"Could not initialize Supabase client: {e}")
+else:
+    logger.warning("ANON_KEY or SUPABASE_PUBLIC_URL not provided. Supabase client skipped.")
 
 def create_account(email, password, role="user"):
+    if not supabase:
+        return {"error": "Supabase client is not configured (missing ANON_KEY or SUPABASE_PUBLIC_URL)."}
     print(f"Signing up {email} with role {role}...")
     try:
         response = supabase.auth.sign_up({
@@ -84,6 +96,8 @@ def create_account(email, password, role="user"):
         return {"error": str(e)}
 
 def login(email, password):
+    if not supabase:
+        return {"error": "Supabase client is not configured (missing ANON_KEY or SUPABASE_PUBLIC_URL)."}
     print(f"Logging in {email}...")
     try:
         response = supabase.auth.sign_in_with_password({
@@ -131,6 +145,8 @@ def login(email, password):
         return {"error": str(e)}
 
 def logout():
+    if not supabase:
+        return {"error": "Supabase client is not configured."}
     try:
         response = supabase.auth.sign_out()
     except Exception as e:
@@ -139,6 +155,8 @@ def logout():
 
 def get_current_user():
     # Gets the currently logged-in user based on the active session
+    if not supabase:
+        return "No active session (Supabase not configured)."
     user = supabase.auth.get_user()
     result=""
     if user:

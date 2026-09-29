@@ -48,4 +48,8 @@ class EventMemberResponse(BaseModel):
     user_email: Optional[str] = None
     role: str
     joined_at: datetime
+    team_id: Optional[str] = None
+    team_name: Optional[str] = None
+    team_role: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
+

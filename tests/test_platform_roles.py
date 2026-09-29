@@ -550,3 +550,47 @@ def test_unregister_participant_and_judge(client):
     assert res_ian_join.status_code == 201
     assert res_ian_join.json()["role"] == "participant"
     db.close()
+
+
+def test_cancel_judge_invitation_and_database_reset():
+    client = TestClient(app)
+    db = TestingSessionLocal()
+
+    # Pre-seed candidate user
+    cand = User(id="user_cand", email="cand@test.org", name="Candidate", role=UserRole.PARTICIPANT.value, session_token="tok_cand")
+    db.merge(cand)
+    db.commit()
+
+    # Bob (organizer) invites cand as judge
+    res_inv = client.post(
+        "/api/events/evt_open_test/judges/invite",
+        json={"user_id": "user_cand"},
+        headers={"X-Session-Token": "tok_bob"},
+    )
+    assert res_inv.status_code == 201
+    inv_id = res_inv.json()["id"]
+
+    # Bob cancels the pending judge invitation
+    res_cancel = client.post(
+        f"/api/events/judges/invitations/{inv_id}/cancel",
+        headers={"X-Session-Token": "tok_bob"},
+    )
+    assert res_cancel.status_code == 200
+    assert res_cancel.json()["status"] == "declined"
+
+    # Non-owner cannot reset database
+    res_reset_forbidden = client.post(
+        "/api/platform/reset-database",
+        headers={"X-Session-Token": "tok_bob"},
+    )
+    assert res_reset_forbidden.status_code == 403
+
+    # Owner (Alice) can reset database
+    res_reset = client.post(
+        "/api/platform/reset-database",
+        headers={"X-Session-Token": "tok_alice"},
+    )
+    assert res_reset.status_code == 200
+    assert "successfully" in res_reset.json()["message"].lower()
+    db.close()
+
